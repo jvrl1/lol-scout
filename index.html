@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LoL Scout</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-dark: #0a0e1a;
+      --bg-card: #0f1923;
+      --bg-card2: #1a2332;
+      --border-dim: #2a3a4a;
+      --gold: #c89b3c;
+      --gold-light: #f0c060;
+      --blue: #0bc4e3;
+      --green: #00c853;
+      --red: #ff3d3d;
+      --text: #ccd3da;
+      --text-dim: #7a8fa6;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text);
+      font-family: 'Rajdhani', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 20% 20%, rgba(12, 196, 227, 0.06) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 80%, rgba(200, 155, 60, 0.06) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 50%, rgba(10, 14, 26, 0.9) 0%, var(--bg-dark) 100%);
+      z-index: 0;
+      pointer-events: none;
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='92' viewBox='0 0 80 92'%3E%3Cpolygon points='40,2 78,22 78,62 40,82 2,62 2,22' fill='none' stroke='%232a3a4a' stroke-width='0.5' opacity='0.4'/%3E%3C/svg%3E");
+      background-size: 80px 92px;
+      opacity: 0.3;
+      z-index: 0;
+      pointer-events: none;
+    }
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse {
+      0%, 100% { text-shadow: 0 0 20px rgba(200,155,60,0.6), 0 0 40px rgba(200,155,60,0.3); }
+      50%       { text-shadow: 0 0 30px rgba(240,192,96,0.9), 0 0 60px rgba(200,155,60,0.5), 0 0 80px rgba(200,155,60,0.2); }
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes shimmer { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }
+    @keyframes barGrow { from { width: 0; } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .container { position: relative; z-index: 1; max-width: 960px; margin: 0 auto; padding: 0 16px 60px; }
+    header { text-align: center; padding: 48px 0 36px; }
+    .logo { font-family: 'Cinzel', serif; font-size: clamp(2rem, 6vw, 3.5rem); font-weight: 900; color: var(--gold-light); letter-spacing: 0.12em; animation: pulse 3s ease-in-out infinite; line-height: 1; }
+    .logo span { color: var(--blue); }
+    .subtitle { font-family: 'Rajdhani', sans-serif; font-size: clamp(0.85rem, 2.5vw, 1.05rem); color: var(--text-dim); letter-spacing: 0.2em; text-transform: uppercase; margin-top: 10px; }
+    .header-line { width: 200px; height: 1px; background: linear-gradient(90deg, transparent, var(--gold), transparent); margin: 18px auto 0; }
+    .search-wrapper { display: flex; gap: 10px; max-width: 560px; margin: 0 auto 40px; }
+    .search-box { flex: 1; display: flex; align-items: center; background: var(--bg-card); border: 1px solid var(--border-dim); border-radius: 6px; padding: 0 16px; gap: 10px; transition: border-color 0.2s; }
+    .search-box:focus-within { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(200,155,60,0.15); }
+    .search-icon { color: var(--gold); font-size: 1.1rem; flex-shrink: 0; }
+    .search-input { flex: 1; background: transparent; border: none; outline: none; color: var(--text); font-family: 'Rajdhani', sans-serif; font-size: 1.05rem; font-weight: 500; padding: 14px 0; letter-spacing: 0.05em; }
+    .search-input::placeholder { color: var(--text-dim); }
+    .btn-search { background: linear-gradient(135deg, var(--gold), #a07828); color: #0a0e1a; border: none; border-radius: 6px; padding: 0 28px; font-family: 'Cinzel', serif; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.1em; cursor: pointer; transition: opacity 0.2s, transform 0.1s; white-space: nowrap; height: 50px; }
+    .btn-search:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-search:active { transform: translateY(0); }
+    .btn-search:disabled { opacity: 0.5; cursor: not-allowed; }
+    .loading-area { display: none; flex-direction: column; align-items: center; gap: 24px; padding: 60px 20px; animation: fadeIn 0.3s ease; }
+    .loading-area.ativo { display: flex; }
+    .spinner { width: 56px; height: 56px; border: 3px solid rgba(200,155,60,0.15); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    .loading-msg { font-family: 'Rajdhani', sans-serif; font-size: 1.05rem; color: var(--text-dim); letter-spacing: 0.08em; text-align: center; min-height: 1.5em; }
+
+    .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; margin-bottom: 18px; }
+
+    .filter-bar {
+      position: relative;
+      z-index: 1;
+      display: none;
+      flex-wrap: wrap;
+      gap: 9px;
+      margin-bottom: 22px;
+      padding: 16px 20px 18px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-dim);
+      border-radius: 10px;
+      animation: fadeIn 0.35s ease;
+    }
+    .filter-bar.visivel { display: flex; }
+    .filter-bar-title {
+      width: 100%;
+      font-family: 'Cinzel', serif;
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: var(--text-dim);
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .filter-bar-title::after { content: ''; flex: 1; height: 1px; background: var(--border-dim); }
+    .filter-btn {
+      background: var(--bg-card2);
+      border: 1px solid var(--border-dim);
+      border-radius: 24px;
+      padding: 8px 18px;
+      color: var(--text-dim);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 0.93rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      letter-spacing: 0.03em;
+      white-space: nowrap;
+    }
+    .filter-btn:hover { border-color: var(--gold); color: var(--text); background: rgba(200,155,60,0.07); transform: translateY(-1px); }
+    .filter-btn.ativo { background: rgba(200,155,60,0.13); border-color: var(--gold); color: var(--gold-light); box-shadow: 0 0 14px rgba(200,155,60,0.18); }
+    .filter-btn.ativo:hover { transform: none; }
+    .filter-count {
+      background: rgba(255,255,255,0.06);
+      border-radius: 8px;
+      padding: 2px 7px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      font-family: monospace;
+      letter-spacing: 0;
+    }
+    .filter-btn.ativo .filter-count { background: rgba(200,155,60,0.22); }
+
+    .card { background: var(--bg-card); border: 1px solid var(--border-dim); border-radius: 10px; padding: 22px; animation: fadeInUp 0.4s ease both; position: relative; overflow: hidden; }
+    .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--gold), transparent); }
+    .card-title { font-family: 'Cinzel', serif; font-size: 0.72rem; font-weight: 600; color: var(--gold); letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; }
+    .card-title::after { content: ''; flex: 1; height: 1px; background: var(--border-dim); }
+
+    .card-perfil { grid-column: 1 / -1; }
+    .perfil-inner { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+    .perfil-icon-wrap { position: relative; flex-shrink: 0; }
+    .perfil-icon { width: 88px; height: 88px; border-radius: 50%; border: 3px solid var(--gold); object-fit: cover; display: block; }
+    .perfil-level { position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); background: var(--gold); color: #0a0e1a; font-family: 'Cinzel', serif; font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
+    .perfil-info { flex: 1; min-width: 180px; }
+    .perfil-nome { font-family: 'Cinzel', serif; font-size: clamp(1.2rem, 3vw, 1.7rem); font-weight: 700; color: var(--gold-light); line-height: 1.2; }
+    .perfil-nome span { color: var(--text-dim); font-weight: 400; }
+    .perfil-puuid { font-size: 0.75rem; color: var(--text-dim); margin-top: 6px; word-break: break-all; font-family: monospace; }
+
+    .ranked-inner { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .ranked-emblem { width: 72px; height: 72px; object-fit: contain; flex-shrink: 0; filter: drop-shadow(0 0 8px rgba(200,155,60,0.3)); }
+    .ranked-info { flex: 1; min-width: 140px; }
+    .ranked-elo { font-family: 'Cinzel', serif; font-size: 1.15rem; font-weight: 700; color: var(--gold-light); line-height: 1.2; }
+    .ranked-lp { font-size: 0.9rem; color: var(--text-dim); margin-top: 2px; }
+    .ranked-wl { display: flex; gap: 12px; margin-top: 10px; font-size: 0.9rem; font-weight: 600; }
+    .ranked-wins { color: var(--green); }
+    .ranked-loses { color: var(--red); }
+    .winrate-bar-wrap { margin-top: 10px; }
+    .winrate-label { font-size: 0.78rem; color: var(--text-dim); margin-bottom: 4px; }
+    .winrate-bar-bg { background: var(--bg-card2); border-radius: 4px; height: 8px; overflow: hidden; }
+    .winrate-bar-fill { height: 100%; border-radius: 4px; background-size: 200% auto; animation: barGrow 0.8s ease both, shimmer 2s linear infinite; }
+    .winrate-bar-fill.verde { background: linear-gradient(90deg, var(--green), #00ff6a, var(--green)); }
+    .winrate-bar-fill.amarelo { background: linear-gradient(90deg, #f0c060, #ffe080, #f0c060); }
+    .winrate-bar-fill.vermelho { background: linear-gradient(90deg, var(--red), #ff7070, var(--red)); }
+    .nao-ranqueado { color: var(--text-dim); font-size: 1rem; padding: 10px 0; }
+
+    .threat-inner { display: flex; align-items: center; gap: 20px; }
+    .threat-score-wrap { display: flex; align-items: baseline; gap: 3px; flex-shrink: 0; }
+    .threat-score-num { font-family: 'Cinzel', serif; font-size: 3rem; font-weight: 900; line-height: 1; }
+    .threat-score-sub { font-size: 0.95rem; color: var(--text-dim); }
+    .threat-info { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+    .threat-level-badge { display: inline-flex; align-items: center; gap: 7px; font-family: 'Cinzel', serif; font-size: 0.88rem; font-weight: 700; padding: 6px 16px; border-radius: 6px; letter-spacing: 0.1em; width: fit-content; }
+    .threat-bar-bg { background: var(--bg-card2); border-radius: 4px; height: 8px; overflow: hidden; }
+    .threat-bar-fill { height: 100%; border-radius: 4px; animation: barGrow 1s ease both; }
+    .threat-desc { font-size: 0.8rem; color: var(--text-dim); line-height: 1.4; }
+
+    .card-stats { grid-column: 1 / -1; }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .stat-item { display: flex; flex-direction: column; align-items: center; background: var(--bg-card2); border-radius: 8px; padding: 16px 10px; text-align: center; }
+    .stat-value { font-family: 'Cinzel', serif; font-size: 1.5rem; font-weight: 700; line-height: 1; }
+    .stat-sub { font-size: 0.7rem; color: var(--text-dim); margin-top: 5px; font-family: monospace; }
+    .stat-label { font-size: 0.66rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.12em; margin-top: 8px; }
+    .multikill-area { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border-dim); }
+    .multikill-badge { font-size: 0.78rem; font-weight: 700; padding: 4px 12px; border-radius: 20px; font-family: 'Cinzel', serif; }
+    .multikill-badge.penta { background: rgba(200,155,60,0.2); color: var(--gold-light); border: 1px solid var(--gold); }
+    .multikill-badge.quadra { background: rgba(11,196,227,0.15); color: var(--blue); border: 1px solid var(--blue); }
+    .multikill-badge.triple { background: rgba(204,211,218,0.1); color: var(--text); border: 1px solid var(--text-dim); }
+
+    .card-modos { grid-column: 1 / -1; }
+    .modos-lista { display: flex; flex-direction: column; gap: 14px; }
+    .modo-item { background: var(--bg-card2); border-radius: 8px; padding: 14px 16px; border-left: 3px solid var(--border-dim); display: flex; flex-direction: column; gap: 8px; }
+    .modo-header { display: flex; align-items: center; gap: 10px; }
+    .modo-icon { font-size: 1.4rem; line-height: 1; flex-shrink: 0; }
+    .modo-nome { font-family: 'Cinzel', serif; font-size: 0.9rem; font-weight: 700; color: var(--text); flex: 1; }
+    .modo-games { font-size: 0.78rem; color: var(--text-dim); white-space: nowrap; }
+    .modo-wr-row { display: flex; align-items: center; gap: 10px; }
+    .modo-wr-bar-bg { flex: 1; background: #0f1923; border-radius: 4px; height: 7px; overflow: hidden; }
+    .modo-wr-bar-fill { height: 100%; border-radius: 4px; background-size: 200% auto; animation: barGrow 0.8s ease both, shimmer 2s linear infinite; }
+    .modo-wr-bar-fill.verde   { background: linear-gradient(90deg, var(--green), #00ff6a, var(--green)); }
+    .modo-wr-bar-fill.amarelo { background: linear-gradient(90deg, #f0c060, #ffe080, #f0c060); }
+    .modo-wr-bar-fill.vermelho{ background: linear-gradient(90deg, var(--red), #ff7070, var(--red)); }
+    .modo-wr-pct { font-family: 'Cinzel', serif; font-size: 0.85rem; font-weight: 700; white-space: nowrap; min-width: 42px; text-align: right; }
+    .modo-meta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    .modo-kda { font-size: 0.8rem; color: var(--text-dim); }
+    .modo-kda strong { color: var(--text); }
+    .modo-mj { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-dim); }
+    .modo-mj img { width: 24px; height: 24px; border-radius: 4px; border: 1px solid var(--border-dim); }
+    .modo-mj strong { color: var(--text); }
+
+    .card-champ-recentes { grid-column: 1 / -1; }
+    .champ-recent-lista { display: flex; flex-direction: column; gap: 14px; }
+    .champ-recent-item { display: flex; align-items: center; gap: 14px; }
+    .champ-recent-icon { width: 46px; height: 46px; border-radius: 6px; border: 1px solid var(--border-dim); object-fit: cover; flex-shrink: 0; }
+    .champ-recent-info { flex: 1; min-width: 0; }
+    .champ-recent-nome { font-weight: 700; font-size: 0.97rem; color: var(--text); }
+    .champ-recent-stats { font-size: 0.78rem; color: var(--text-dim); margin-top: 2px; }
+    .champ-recent-bar-bg { background: var(--bg-card2); border-radius: 3px; height: 5px; margin-top: 6px; overflow: hidden; }
+    .champ-recent-bar-fill { height: 100%; border-radius: 3px; background-size: 200% auto; animation: barGrow 0.8s ease both, shimmer 2s linear infinite; }
+    .champ-recent-bar-fill.verde   { background: linear-gradient(90deg, var(--green), #00ff6a, var(--green)); }
+    .champ-recent-bar-fill.amarelo { background: linear-gradient(90deg, #f0c060, #ffe080, #f0c060); }
+    .champ-recent-bar-fill.vermelho{ background: linear-gradient(90deg, var(--red), #ff7070, var(--red)); }
+    .champ-recent-wr { font-size: 0.8rem; font-weight: 700; padding: 4px 12px; border-radius: 12px; white-space: nowrap; flex-shrink: 0; font-family: 'Cinzel', serif; }
+    .champ-recent-games { font-size: 0.72rem; color: var(--text-dim); text-align: center; white-space: nowrap; flex-shrink: 0; min-width: 36px; }
+
+    .card-maestrias { grid-column: 1 / -1; }
+    .maestria-lista { display: flex; flex-direction: column; gap: 12px; }
+    .maestria-item { display: flex; align-items: center; gap: 12px; }
+    .maestria-icon { width: 44px; height: 44px; border-radius: 6px; border: 1px solid var(--border-dim); object-fit: cover; flex-shrink: 0; }
+    .maestria-info { flex: 1; min-width: 0; }
+    .maestria-nome { font-weight: 600; font-size: 0.95rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .maestria-pts { font-size: 0.78rem; color: var(--text-dim); margin-top: 2px; }
+    .maestria-bar-bg { background: var(--bg-card2); border-radius: 3px; height: 5px; margin-top: 5px; overflow: hidden; }
+    .maestria-bar-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--gold), var(--gold-light)); animation: barGrow 0.8s ease both; }
+    .maestria-badge { font-size: 0.7rem; font-weight: 700; padding: 2px 7px; border-radius: 4px; flex-shrink: 0; font-family: 'Cinzel', serif; }
+    .badge-m7 { background: rgba(200,155,60,0.2); color: var(--gold-light); border: 1px solid var(--gold); }
+    .badge-m6 { background: rgba(11,196,227,0.15); color: var(--blue); border: 1px solid var(--blue); }
+    .badge-m5 { background: rgba(204,211,218,0.1); color: var(--text); border: 1px solid var(--text-dim); }
+
+    .card-partidas { grid-column: 1 / -1; }
+    .partidas-inner { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+    .partidas-winrate-bloco { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 90px; }
+    .partidas-wr-num { font-family: 'Cinzel', serif; font-size: 2.4rem; font-weight: 700; line-height: 1; }
+    .partidas-wr-label { font-size: 0.75rem; color: var(--text-dim); letter-spacing: 0.1em; text-transform: uppercase; }
+    .partidas-badges { display: flex; flex-wrap: wrap; gap: 5px; flex: 1; align-content: flex-start; }
+    .badge-v { background: rgba(0,200,83,0.15); color: var(--green); border: 1px solid rgba(0,200,83,0.4); border-radius: 4px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.8rem; }
+    .badge-d { background: rgba(255,61,61,0.15); color: var(--red); border: 1px solid rgba(255,61,61,0.4); border-radius: 4px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.8rem; }
+    .partidas-mais-jogado { display: flex; align-items: center; gap: 10px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-dim); width: 100%; }
+    .partidas-mais-jogado img { width: 40px; height: 40px; border-radius: 6px; border: 1px solid var(--border-dim); }
+    .partidas-mais-jogado-info { font-size: 0.88rem; color: var(--text-dim); }
+    .partidas-mais-jogado-info strong { color: var(--text); font-size: 0.95rem; }
+    .streak-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 14px; border-radius: 20px; font-family: 'Cinzel', serif; font-size: 0.78rem; font-weight: 700; margin-bottom: 14px; }
+    .streak-win  { background: rgba(0,200,83,0.12); color: var(--green); border: 1px solid rgba(0,200,83,0.4); }
+    .streak-loss { background: rgba(255,61,61,0.12); color: var(--red);   border: 1px solid rgba(255,61,61,0.4); }
+
+    .card-historico { grid-column: 1 / -1; }
+    .historico-lista { display: flex; flex-direction: column; gap: 8px; }
+    .historico-item { display: flex; align-items: center; gap: 12px; background: var(--bg-card2); border-radius: 8px; padding: 10px 14px; border-left: 3px solid transparent; transition: background 0.2s; flex-wrap: wrap; }
+    .historico-item.vitoria { border-left-color: var(--green); }
+    .historico-item.derrota { border-left-color: var(--red); }
+    .historico-item:hover { background: #1f2e40; }
+    .historico-champ-icon { width: 40px; height: 40px; border-radius: 6px; border: 1px solid var(--border-dim); object-fit: cover; flex-shrink: 0; }
+    .historico-resultado { font-family: 'Cinzel', serif; font-size: 0.78rem; font-weight: 700; padding: 3px 10px; border-radius: 4px; flex-shrink: 0; min-width: 28px; text-align: center; }
+    .historico-resultado.v { background: rgba(0,200,83,0.15); color: var(--green); border: 1px solid rgba(0,200,83,0.4); }
+    .historico-resultado.d { background: rgba(255,61,61,0.15); color: var(--red); border: 1px solid rgba(255,61,61,0.4); }
+    .historico-champ-nome { font-weight: 700; font-size: 0.9rem; color: var(--text); min-width: 90px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
+    .historico-kda { font-size: 0.88rem; font-weight: 600; color: var(--text); min-width: 80px; flex-shrink: 0; }
+    .historico-kda span { color: var(--text-dim); font-weight: 400; font-size: 0.78rem; }
+    .historico-queue-tag { font-size: 0.68rem; padding: 2px 7px; border-radius: 10px; font-weight: 700; white-space: nowrap; flex-shrink: 0; opacity: 0.85; }
+    .historico-stats { display: flex; gap: 14px; flex: 1; flex-wrap: wrap; align-items: center; }
+    .historico-stat { display: flex; flex-direction: column; align-items: center; min-width: 48px; }
+    .historico-stat-val { font-size: 0.82rem; font-weight: 700; color: var(--text); }
+    .historico-stat-lbl { font-size: 0.62rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 1px; }
+    .historico-duracao { font-size: 0.78rem; color: var(--text-dim); flex-shrink: 0; min-width: 44px; text-align: right; }
+    .historico-multikill { font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 10px; flex-shrink: 0; font-family: 'Cinzel', serif; }
+    .historico-multikill.penta  { background: rgba(200,155,60,0.2); color: var(--gold-light); border: 1px solid var(--gold); }
+    .historico-multikill.quadra { background: rgba(11,196,227,0.15); color: var(--blue); border: 1px solid var(--blue); }
+    .historico-multikill.triple { background: rgba(204,211,218,0.1); color: var(--text); border: 1px solid var(--text-dim); }
+
+    .card-lane { grid-column: 1 / -1; }
+    .lane-metricas { display: flex; flex-direction: column; gap: 16px; }
+    .lane-metrica-item { display: flex; flex-direction: column; gap: 6px; }
+    .lane-metrica-header { display: flex; justify-content: space-between; align-items: center; }
+    .lane-metrica-label { font-size: 0.82rem; font-weight: 600; color: var(--text); letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px; }
+    .lane-metrica-label .metrica-icon { font-size: 1rem; }
+    .lane-metrica-valor { font-family: 'Cinzel', serif; font-size: 0.88rem; font-weight: 700; }
+    .lane-bar-bg { background: var(--bg-card2); border-radius: 4px; height: 8px; overflow: hidden; }
+    .lane-bar-fill { height: 100%; border-radius: 4px; background-size: 200% auto; animation: barGrow 0.9s ease both, shimmer 2s linear infinite; }
+    .lane-bar-fill.verde   { background: linear-gradient(90deg, var(--green), #00ff6a, var(--green)); }
+    .lane-bar-fill.amarelo { background: linear-gradient(90deg, #f0c060, #ffe080, #f0c060); }
+    .lane-bar-fill.vermelho{ background: linear-gradient(90deg, var(--red), #ff7070, var(--red)); }
+    .lane-metrica-desc { font-size: 0.72rem; color: var(--text-dim); line-height: 1.4; }
+
+    .card-filtro-vazio { grid-column: 1 / -1; }
+    .filtro-vazio-inner { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 30px 20px; text-align: center; }
+    .filtro-vazio-icon { font-size: 2.5rem; }
+    .filtro-vazio-texto { font-family: 'Cinzel', serif; font-size: 0.95rem; color: var(--text-dim); }
+
+    .copy-report-wrapper { display: none; justify-content: center; margin-top: 28px; }
+    .copy-report-wrapper.visivel { display: flex; }
+    .btn-copy-report { background: transparent; border: 1px solid var(--gold); color: var(--gold-light); border-radius: 6px; padding: 12px 32px; font-family: 'Cinzel', serif; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.12em; cursor: pointer; transition: background 0.2s, color 0.2s, transform 0.1s, box-shadow 0.2s; display: flex; align-items: center; gap: 10px; }
+    .btn-copy-report:hover { background: rgba(200,155,60,0.1); box-shadow: 0 0 16px rgba(200,155,60,0.2); transform: translateY(-1px); }
+    .btn-copy-report:active { transform: translateY(0); }
+    .btn-copy-report.copiado { border-color: var(--green); color: var(--green); background: rgba(0,200,83,0.08); }
+
+    .card-erro { grid-column: 1 / -1; border-color: rgba(255,61,61,0.4); background: rgba(255,61,61,0.05); }
+    .card-erro::before { background: linear-gradient(90deg, transparent, var(--red), transparent); }
+    .erro-inner { display: flex; align-items: flex-start; gap: 16px; }
+    .erro-icon { font-size: 2rem; color: var(--red); flex-shrink: 0; line-height: 1; }
+    .erro-titulo { font-family: 'Cinzel', serif; font-size: 1rem; color: var(--red); margin-bottom: 6px; }
+    .erro-msg { font-size: 0.9rem; color: var(--text-dim); line-height: 1.5; }
+
+    footer { position: relative; z-index: 1; text-align: center; padding: 24px 16px; font-size: 0.78rem; color: var(--text-dim); letter-spacing: 0.05em; border-top: 1px solid var(--border-dim); }
+
+    @media (max-width: 700px) {
+      .cards-grid { grid-template-columns: 1fr; }
+      .card-perfil, .card-maestrias, .card-partidas, .card-stats, .card-champ-recentes, .card-historico, .card-lane, .card-modos, .card-filtro-vazio { grid-column: 1; }
+      .perfil-inner, .ranked-inner { flex-direction: column; align-items: flex-start; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .threat-inner { flex-direction: column; align-items: flex-start; }
+      .historico-stats { gap: 8px; }
+      .historico-champ-nome { max-width: 80px; }
+      .filter-btn { font-size: 0.82rem; padding: 7px 13px; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="logo">⚔ LOL <span>SCOUT</span></div>
+    <div class="subtitle">Analise seus oponentes antes da batalha</div>
+    <div class="header-line"></div>
+  </header>
+
+  <div class="search-wrapper">
+    <div class="search-box">
+      <span class="search-icon">⚔</span>
+      <input class="search-input" id="inputRiotId" type="text" placeholder="NickName#BR1" autocomplete="off" spellcheck="false" />
+    </div>
+    <button class="btn-search" id="btnBuscar">ANALISAR</button>
+  </div>
+
+  <div class="loading-area" id="loadingArea">
+    <div class="spinner"></div>
+    <div class="loading-msg" id="loadingMsg">Conectando ao servidor local...</div>
+  </div>
+
+  <div class="cards-grid" id="staticCardsGrid"></div>
+  <div class="filter-bar" id="filterBar"></div>
+  <div class="cards-grid" id="dynamicCardsGrid"></div>
+
+  <div class="copy-report-wrapper" id="copyReportWrapper">
+    <button class="btn-copy-report" id="btnCopyReport">
+      <span>📋</span><span id="btnCopyReportText">COPIAR RELATÓRIO</span>
+    </button>
+  </div>
+</div>
+<footer>Dados fornecidos pela Riot Games API &bull; Não afiliado à Riot Games</footer>
+
+<script>
+  // ── getFallbackIcon: SVG inline 46x46 com inicial do campeão ──
+  function getFallbackIcon(name) {
+    const letter = (name || '?')[0].toUpperCase();
+    const palette = ['#c89b3c', '#0bc4e3', '#9b59b6', '#e74c3c', '#2ecc71', '#f39c12', '#3498db'];
+    const color = palette[letter.charCodeAt(0) % palette.length];
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='46' height='46' viewBox='0 0 46 46'>`
+      + `<rect width='46' height='46' rx='6' fill='${color}' opacity='0.18'/>`
+      + `<rect x='0.5' y='0.5' width='45' height='45' rx='5.5' fill='none' stroke='${color}' stroke-opacity='0.5'/>`
+      + `<text x='23' y='31' text-anchor='middle' fill='${color}' font-size='22' font-weight='bold' font-family='Arial,sans-serif'>${letter}</text>`
+      + `</svg>`;
+    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  }
+
+  // ── getFallbackIcon40: SVG inline 40x40 para histórico ──
+  function getFallbackIcon40(name) {
+    const letter = (name || '?')[0].toUpperCase();
+    const palette = ['#c89b3c', '#0bc4e3', '#9b59b6', '#e74c3c', '#2ecc71', '#f39c12', '#3498db'];
+    const color = palette[letter.charCodeAt(0) % palette.length];
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'>`
+      + `<rect width='40' height='40' rx='6' fill='${color}' opacity='0.18'/>`
+      + `<rect x='0.5' y='0.5' width='39' height='39' rx='5.5' fill='none' stroke='${color}' stroke-opacity='0.5'/>`
+      + `<text x='20' y='27' text-anchor='middle' fill='${color}' font-size='19' font-weight='bold' font-family='Arial,sans-serif'>${letter}</text>`
+      + `</svg>`;
+    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  }
+
+  // ── getFallbackIcon24: SVG inline 24x24 para modo mais jogado ──
+  function getFallbackIcon24(name) {
+    const letter = (name || '?')[0].toUpperCase();
+    const palette = ['#c89b3c', '#0bc4e3', '#9b59b6', '#e74c3c', '#2ecc71', '#f39c12', '#3498db'];
+    const color = palette[letter.charCodeAt(0) % palette.length];
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'>`
+      + `<rect width='24' height='24' rx='4' fill='${color}' opacity='0.18'/>`
+      + `<text x='12' y='17' text-anchor='middle' fill='${color}' font-size='13' font-weight='bold' font-family='Arial,sans-serif'>${letter}</text>`
+      + `</svg>`;
+    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  }
+
+  const API_KEY  = "RGAPI-5f9863c6-fd24-4215-b0d5-96682382481d";
+  const REGION   = "br1";
+  const REGIONAL = "americas";
+
+  const RANK_PT = {
+    IRON: "Ferro", BRONZE: "Bronze", SILVER: "Prata", GOLD: "Ouro",
+    PLATINUM: "Platina", EMERALD: "Esmeralda", DIAMOND: "Diamante",
+    MASTER: "Mestre", GRANDMASTER: "Grão-Mestre", CHALLENGER: "Desafiante"
+  };
+
+  const QUEUE_NAMES = {
+    420:  { nome: 'Ranked Solo/Duo',    icon: '🏆', color: '#c89b3c' },
+    440:  { nome: 'Ranked Flex',        icon: '🥇', color: '#0bc4e3' },
+    450:  { nome: 'ARAM',               icon: '🌉', color: '#9b59b6' },
+    400:  { nome: 'Normal Draft',       icon: '⚔️', color: '#2ecc71' },
+    430:  { nome: 'Normal Blind',       icon: '🗡️', color: '#27ae60' },
+    700:  { nome: 'Clash',              icon: '🏟️', color: '#e74c3c' },
+    900:  { nome: 'URF',                icon: '🎪', color: '#f39c12' },
+    1020: { nome: 'One for All',        icon: '👥', color: '#8e44ad' },
+    1300: { nome: 'Nexus Blitz',        icon: '💥', color: '#e67e22' },
+    1400: { nome: 'Ultimate Spellbook', icon: '📖', color: '#3498db' },
+    1700: { nome: 'Arena',              icon: '🎮', color: '#e91e63' },
+    1900: { nome: 'URF Pick',           icon: '🎯', color: '#ff9800' },
+    720:  { nome: 'ARAM Clash',         icon: '⚡', color: '#c0392b' },
+    830:  { nome: 'Co-op vs AI',        icon: '🤖', color: '#607d8b' },
+    840:  { nome: 'Co-op vs AI',        icon: '🤖', color: '#607d8b' },
+    850:  { nome: 'Co-op vs AI',        icon: '🤖', color: '#607d8b' },
+  };
+
+  const FILTERABLE_QUEUES = [420, 440, 700, 450];
+
+  function getQueueInfo(queueId) {
+    return QUEUE_NAMES[queueId] || { nome: `Modo ${queueId}`, icon: '🎮', color: '#7a8fa6' };
+  }
+
+  const LOADING_MSGS = [
+    "Conectando ao servidor local...",
+    "Buscando invocador...",
+    "Carregando dados de ranked...",
+    "Analisando maestrias...",
+    "Verificando histórico de partidas...",
+    "Compilando relatório de batalha..."
+  ];
+
+  let _champDataCache  = null;
+  let _relatorioData   = null;
+  let _allMatchDetails = [];
+  let _champDataGlobal = null;
+  let _activeFilter    = 0;
+
+  async function riotFetch(url) {
+    const res = await fetch(`/riot-proxy?url=${encodeURIComponent(url)}&key=${encodeURIComponent(API_KEY)}`);
+    if (!res.ok) {
+      const err = { status: res.status };
+      try { const j = await res.json(); err.message = j?.status?.message || ''; } catch(_) {}
+      throw err;
+    }
+    return res.json();
+  }
+
+  async function proxyFetch(url) {
+    const res = await fetch(`/riot-proxy?url=${encodeURIComponent(url)}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  }
+
+  async function getChampionData() {
+    if (_champDataCache) return _champDataCache;
+    try {
+      const versoes = await proxyFetch('https://ddragon.leagueoflegends.com/api/versions.json');
+      const versao  = versoes[0];
+      const data    = await proxyFetch(`https://ddragon.leagueoflegends.com/cdn/${versao}/data/pt_BR/champion.json`);
+      const names = {}, icons = {};
+      for (const champ of Object.values(data.data)) {
+        names[champ.key] = champ.name;
+        icons[champ.name] = `https://ddragon.leagueoflegends.com/cdn/${versao}/img/champion/${champ.id}.png`;
+      }
+      _champDataCache = { names, icons, versao };
+      return _champDataCache;
+    } catch (e) {
+      throw { tipo: 'ddragon', msg: 'Não foi possível carregar os dados dos campeões via proxy.' };
+    }
+  }
+
+  function setLoading(ativo, msgIdx) {
+    const area = document.getElementById('loadingArea');
+    const msg  = document.getElementById('loadingMsg');
+    if (ativo) { area.classList.add('ativo'); msg.textContent = LOADING_MSGS[msgIdx] || LOADING_MSGS[0]; }
+    else        { area.classList.remove('ativo'); }
+  }
+
+  function limparCards() {
+    document.getElementById('staticCardsGrid').innerHTML  = '';
+    document.getElementById('dynamicCardsGrid').innerHTML = '';
+    const fb = document.getElementById('filterBar');
+    fb.innerHTML = '';
+    fb.classList.remove('visivel');
+    document.getElementById('copyReportWrapper').classList.remove('visivel');
+    _relatorioData   = null;
+    _allMatchDetails = [];
+    _champDataGlobal = null;
+    _activeFilter    = 0;
+  }
+
+  function criarCardStatic(classes, html, delay) {
+    const card = document.createElement('div');
+    card.className = 'card ' + classes;
+    card.style.animationDelay = (delay || 0) + 'ms';
+    card.innerHTML = html;
+    document.getElementById('staticCardsGrid').appendChild(card);
+  }
+
+  function criarCard(classes, html, delay) {
+    const card = document.createElement('div');
+    card.className = 'card ' + classes;
+    card.style.animationDelay = (delay || 0) + 'ms';
+    card.innerHTML = html;
+    document.getElementById('dynamicCardsGrid').appendChild(card);
+  }
+
+  function criarCardErro(titulo, mensagem) {
+    criarCardStatic('card-erro', `
+      <div class="card-title">Erro</div>
+      <div class="erro-inner">
+        <div class="erro-icon">⚠</div>
+        <div><div class="erro-titulo">${titulo}</div><div class="erro-msg">${mensagem}</div></div>
+      </div>`, 0);
+  }
+
+  function showFilterBar(allMatches) {
+    const queueCounts = {};
+    for (const m of allMatches) {
+      const qid = m.queueId || 0;
+      queueCounts[qid] = (queueCounts[qid] || 0) + 1;
+    }
+    const availableQueues = FILTERABLE_QUEUES.filter(q => queueCounts[q] > 0);
+    if (availableQueues.length === 0) return;
+    const bar = document.getElementById('filterBar');
+    let html = `<div class="filter-bar-title">Filtrar por Modo de Jogo</div>`;
+    html += `<button class="filter-btn ativo" data-queue="0">🎮 Todos <span class="filter-count">${allMatches.length}</span></button>`;
+    for (const qid of availableQueues) {
+      const info = getQueueInfo(qid);
+      html += `<button class="filter-btn" data-queue="${qid}" data-color="${info.color}">${info.icon} ${info.nome} <span class="filter-count">${queueCounts[qid]}</span></button>`;
+    }
+    bar.innerHTML = html;
+    bar.classList.add('visivel');
+    bar.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => applyFilter(Number(btn.dataset.queue)));
+    });
+  }
+
+  function applyFilter(queueId) {
+    _activeFilter = queueId;
+    document.querySelectorAll('#filterBar .filter-btn').forEach(btn => {
+      const isActive = Number(btn.dataset.queue) === queueId;
+      btn.classList.toggle('ativo', isActive);
+      if (isActive && queueId !== 0) {
+        const color = btn.dataset.color || 'var(--gold)';
+        btn.style.borderColor = color;
+        btn.style.color       = color;
+        btn.style.background  = color + '22';
+        btn.style.boxShadow   = `0 0 14px ${color}44`;
+      } else {
+        btn.style.borderColor = '';
+        btn.style.color       = '';
+        btn.style.background  = '';
+        btn.style.boxShadow   = '';
+      }
+    });
+    const filtered = queueId === 0
+      ? _allMatchDetails
+      : _allMatchDetails.filter(m => m.queueId === queueId);
+    renderDynamicCards(filtered, _champDataGlobal);
+  }
+
+  function renderDynamicCards(matches, champData) {
+    document.getElementById('dynamicCardsGrid').innerHTML = '';
+    if (matches.length === 0) {
+      criarCard('card-filtro-vazio', `
+        <div class="filtro-vazio-inner">
+          <div class="filtro-vazio-icon">🔍</div>
+          <div class="filtro-vazio-texto">Nenhuma partida encontrada para este modo no histórico analisado.</div>
+        </div>`, 0);
+      return;
+    }
+    renderCardStats(matches);
+    if (_activeFilter === 0) renderCardModos(matches, champData);
+    renderCardCampeoesRecentes(matches, champData);
+    renderCardPartidas(matches, champData);
+    renderCardHistorico(matches, champData);
+    renderCardLane(matches);
+  }
+
+  function getRankedEmblemUrl(tier) {
+    if (!tier) return null;
+    return `https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-shared-components/global/default/images/ranked-mini-crests/${tier.toLowerCase()}.png`;
+  }
+
+  function winrateClass(wr) {
+    if (wr >= 55) return 'verde';
+    if (wr >= 48) return 'amarelo';
+    return 'vermelho';
+  }
+
+  function winrateColor(wr) {
+    if (wr >= 55) return 'var(--green)';
+    if (wr >= 48) return 'var(--gold-light)';
+    return 'var(--red)';
+  }
+
+  function formatDuration(seconds) {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${String(s).padStart(2, '0')}`;
+  }
+
+  function laneBarClass(val) {
+    if (val >= 65) return 'verde';
+    if (val >= 40) return 'amarelo';
+    return 'vermelho';
+  }
+
+  function laneBarColor(val) {
+    if (val >= 65) return 'var(--green)';
+    if (val >= 40) return 'var(--gold-light)';
+    return 'var(--red)';
+  }
+
+  // ── Cards ESTÁTICOS ──
+
+  function renderCardPerfil(summoner, riotAccount) {
+    const gameName = riotAccount?.gameName || summoner.name || '—';
+    const tagLine  = riotAccount?.tagLine  || '';
+    const iconUrl  = `https://ddragon.leagueoflegends.com/cdn/14.10.1/img/profileicon/${summoner.profileIconId}.png`;
+    criarCardStatic('card-perfil', `
+      <div class="card-title">Invocador</div>
+      <div class="perfil-inner">
+        <div class="perfil-icon-wrap">
+          <img class="perfil-icon" src="${iconUrl}" alt="Ícone" loading="lazy" onerror="this.onerror=null;this.src='https://ddragon.leagueoflegends.com/cdn/14.10.1/img/profileicon/29.png'" />
+          <div class="perfil-level">Nv ${summoner.summonerLevel}</div>
+        </div>
+        <div class="perfil-info">
+          <div class="perfil-nome">${gameName}<span>#${tagLine}</span></div>
+          <div class="perfil-puuid">${summoner.puuid}</div>
+        </div>
+      </div>`, 0);
+  }
+
+  function renderCardRanked(rankedData) {
+    const solo = rankedData.find(r => r.queueType === 'RANKED_SOLO_5x5');
+    if (!solo) {
+      criarCardStatic('', `<div class="card-title">Ranked Solo/Duo</div><div class="nao-ranqueado">Sem dados de ranked nesta temporada.</div>`, 100);
+    } else {
+      const tierPT = RANK_PT[solo.tier] || solo.tier;
+      const total  = solo.wins + solo.losses;
+      const wr     = total > 0 ? Math.round((solo.wins / total) * 100) : 0;
+      const wrCls  = winrateClass(wr);
+      const emblem = getRankedEmblemUrl(solo.tier);
+      criarCardStatic('', `
+        <div class="card-title">Ranked Solo/Duo</div>
+        <div class="ranked-inner">
+          ${emblem ? `<img class="ranked-emblem" src="${emblem}" alt="${solo.tier}" loading="lazy" onerror="this.style.display='none'" />` : ''}
+          <div class="ranked-info">
+            <div class="ranked-elo">${tierPT} ${solo.rank}</div>
+            <div class="ranked-lp">${solo.leaguePoints} LP</div>
+            <div class="ranked-wl"><span class="ranked-wins">▲ ${solo.wins}V</span><span class="ranked-loses">▼ ${solo.losses}D</span></div>
+            <div class="winrate-bar-wrap">
+              <div class="winrate-label">Winrate: ${wr}% (${total} partidas)</div>
+              <div class="winrate-bar-bg"><div class="winrate-bar-fill ${wrCls}" style="width:${wr}%"></div></div>
+            </div>
+          </div>
+        </div>`, 100);
+    }
+    const flex = rankedData.find(r => r.queueType === 'RANKED_FLEX_SR');
+    if (flex) {
+      const tierPT = RANK_PT[flex.tier] || flex.tier;
+      const total  = flex.wins + flex.losses;
+      const wr     = total > 0 ? Math.round((flex.wins / total) * 100) : 0;
+      const wrCls  = winrateClass(wr);
+      const emblem = getRankedEmblemUrl(flex.tier);
+      criarCardStatic('', `
+        <div class="card-title" style="color:var(--blue)">Ranked Flex 5x5</div>
+        <div class="ranked-inner">
+          ${emblem ? `<img class="ranked-emblem" src="${emblem}" alt="${flex.tier}" loading="lazy" onerror="this.style.display='none'" style="filter:drop-shadow(0 0 8px rgba(11,196,227,0.4))" />` : ''}
+          <div class="ranked-info">
+            <div class="ranked-elo" style="color:var(--blue)">${tierPT} ${flex.rank}</div>
+            <div class="ranked-lp">${flex.leaguePoints} LP</div>
+            <div class="ranked-wl"><span class="ranked-wins">▲ ${flex.wins}V</span><span class="ranked-loses">▼ ${flex.losses}D</span></div>
+            <div class="winrate-bar-wrap">
+              <div class="winrate-label">Winrate: ${wr}% (${total} partidas)</div>
+              <div class="winrate-bar-bg"><div class="winrate-bar-fill ${wrCls}" style="width:${wr}%"></div></div>
+            </div>
+          </div>
+        </div>`, 130);
+    }
+  }
+
+  function renderCardThreat(rankedData, matches) {
+    let score = 0;
+    const solo = rankedData.find(r => r.queueType === 'RANKED_SOLO_5x5');
+    if (solo) {
+      const tierScores = { IRON:0, BRONZE:5, SILVER:10, GOLD:16, PLATINUM:22, EMERALD:28, DIAMOND:33, MASTER:37, GRANDMASTER:39, CHALLENGER:40 };
+      score += tierScores[solo.tier] || 0;
+    }
+    if (matches.length > 0) score += (matches.filter(m => m.win).length / matches.length) * 30;
+    if (matches.length > 0) {
+      const totalDeaths = matches.reduce((s,m) => s + m.deaths, 0);
+      const kda = totalDeaths > 0
+        ? (matches.reduce((s,m) => s + m.kills + m.assists, 0) / matches.length) / (totalDeaths / matches.length)
+        : 10;
+      score += Math.min(kda / 5 * 20, 20);
+    }
+    if (matches.length > 0) {
+      const avgDmg = matches.reduce((s,m) => s + m.damage, 0) / matches.length;
+      score += Math.min(avgDmg / 30000 * 10, 10);
+    }
+    const finalScore = Math.min(Math.round(score), 100);
+    let level, color, bg, border, icon, desc;
+    if (finalScore >= 75)      { level='EXTREMO'; color='#ff3d3d'; bg='rgba(255,61,61,0.12)';  border='rgba(255,61,61,0.4)';  icon='💀'; desc='Jogador de alto nível. Cuidado extremo recomendado — trate como ameaça prioritária.'; }
+    else if (finalScore >= 55) { level='ALTO';    color='#ff8c00'; bg='rgba(255,140,0,0.12)';  border='rgba(255,140,0,0.4)';  icon='⚠️'; desc='Oponente experiente. Jogue com cautela e evite trocas desfavoráveis.'; }
+    else if (finalScore >= 35) { level='MÉDIO';   color='#f0c060'; bg='rgba(240,192,96,0.12)'; border='rgba(240,192,96,0.4)'; icon='⚡'; desc='Oponente mediano. Jogo equilibrado — aproveite vantagens de matchup.'; }
+    else                        { level='BAIXO';  color='#00c853'; bg='rgba(0,200,83,0.12)';   border='rgba(0,200,83,0.4)';   icon='✅'; desc='Oponente menos experiente. Aplique pressão desde cedo e domine a lane.'; }
+    if (_relatorioData) { _relatorioData.threatScore = finalScore; _relatorioData.threatLevel = level; }
+    criarCardStatic('card-threat', `
+      <div class="card-title">Nível de Ameaça</div>
+      <div class="threat-inner">
+        <div class="threat-score-wrap">
+          <div class="threat-score-num" style="color:${color}">${finalScore}</div>
+          <div class="threat-score-sub">/100</div>
+        </div>
+        <div class="threat-info">
+          <div class="threat-level-badge" style="color:${color};background:${bg};border:1px solid ${border}">${icon} ${level}</div>
+          <div class="threat-bar-bg"><div class="threat-bar-fill" style="width:${finalScore}%;background:${color}"></div></div>
+          <div class="threat-desc">${desc}</div>
+        </div>
+      </div>`, 80);
+  }
+
+  function renderCardMaestrias(maestrias, champData) {
+    const top    = maestrias.slice(0, 7);
+    const maxPts = top[0]?.championPoints || 1;
+    const itens  = top.map(m => {
+      const nome  = champData.names[String(m.championId)] || `Campeão ${m.championId}`;
+      const icon  = champData.icons[nome] || '';
+      const pts   = m.championPoints.toLocaleString('pt-BR');
+      const pct   = Math.round((m.championPoints / maxPts) * 100);
+      const nivel = m.championLevel;
+      let badgeHtml = '';
+      if (nivel >= 7)      badgeHtml = `<span class="maestria-badge badge-m7">M${nivel}</span>`;
+      else if (nivel >= 6) badgeHtml = `<span class="maestria-badge badge-m6">M${nivel}</span>`;
+      else if (nivel >= 5) badgeHtml = `<span class="maestria-badge badge-m5">M${nivel}</span>`;
+      return `
+        <div class="maestria-item">
+          <img class="maestria-icon" src="${icon}" alt="${nome}" loading="lazy" onerror="this.onerror=null;this.src=getFallbackIcon(this.alt)" />
+          <div class="maestria-info">
+            <div class="maestria-nome">${nome}</div>
+            <div class="maestria-pts">${pts} pts</div>
+            <div class="maestria-bar-bg"><div class="maestria-bar-fill" style="width:${pct}%"></div></div>
+          </div>
+          ${badgeHtml}
+        </div>`;
+    }).join('');
+    criarCardStatic('card-maestrias', `
+      <div class="card-title">Maestrias</div>
+      <div class="maestria-lista">${itens}</div>
+    `, 380);
+  }
+
+  // ── Cards DINÂMICOS ──
+
+  function renderCardStats(matches) {
+    if (!matches.length) return;
+    const n = matches.length;
+    const modeLabel = _activeFilter !== 0 ? ` — ${getQueueInfo(_activeFilter).nome}` : '';
+    const avgK  = matches.reduce((s,m) => s + m.kills,   0) / n;
+    const avgD  = matches.reduce((s,m) => s + m.deaths,  0) / n;
+    const avgA  = matches.reduce((s,m) => s + m.assists, 0) / n;
+    const kda   = avgD > 0 ? (avgK + avgA) / avgD : avgK + avgA;
+    const avgCs = matches.reduce((s,m) => s + m.csPerMin, 0) / n;
+    const avgDmg= matches.reduce((s,m) => s + m.damage, 0) / n;
+    const avgVis= matches.reduce((s,m) => s + m.vision, 0) / n;
+    const kpGames = matches.filter(m => m.teamKills > 0);
+    const avgKP = kpGames.length > 0 ? kpGames.reduce((s,m) => s + (m.kills+m.assists)/m.teamKills*100, 0)/kpGames.length : 0;
+    const pentas  = matches.reduce((s,m) => s + (m.pentaKills  || 0), 0);
+    const quadras = matches.reduce((s,m) => s + (m.quadraKills || 0), 0);
+    const triples = matches.reduce((s,m) => s + (m.tripleKills || 0), 0);
+    const kdaColor = kda >= 4 ? 'var(--gold-light)' : kda >= 2.5 ? 'var(--blue)' : kda >= 1.5 ? 'var(--text)' : 'var(--red)';
+    let multikillHtml = '';
+    if (pentas  > 0) multikillHtml += `<span class="multikill-badge penta">🏆 ${pentas} Penta${pentas>1?'s':''}</span>`;
+    if (quadras > 0) multikillHtml += `<span class="multikill-badge quadra">⚡ ${quadras} Quadra${quadras>1?'s':''}</span>`;
+    if (triples > 0) multikillHtml += `<span class="multikill-badge triple">🎯 ${triples} Triple${triples>1?'s':''}</span>`;
+    if (_relatorioData && _activeFilter === 0) { _relatorioData.kda=kda; _relatorioData.avgK=avgK; _relatorioData.avgD=avgD; _relatorioData.avgA=avgA; }
+    criarCard('card-stats', `
+      <div class="card-title">Performance Média${modeLabel} — ${n} Partidas</div>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="stat-value" style="color:${kdaColor}">${kda.toFixed(2)}</div>
+          <div class="stat-sub">${avgK.toFixed(1)} / ${avgD.toFixed(1)} / ${avgA.toFixed(1)}</div>
+          <div class="stat-label">KDA</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" style="color:var(--blue)">${avgCs.toFixed(1)}</div>
+          <div class="stat-sub">minions/min</div>
+          <div class="stat-label">CS/min</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" style="color:var(--red)">${(avgDmg/1000).toFixed(1)}k</div>
+          <div class="stat-sub">por partida</div>
+          <div class="stat-label">Dano médio</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" style="color:var(--gold-light)">${Math.round(avgKP)}%</div>
+          <div class="stat-sub">kill part.</div>
+          <div class="stat-label">Participação</div>
+        </div>
+        <div class="stat-item" style="grid-column:span 2">
+          <div class="stat-value" style="color:var(--text-dim)">${Math.round(avgVis)}</div>
+          <div class="stat-sub">por partida</div>
+          <div class="stat-label">Vision Score</div>
+        </div>
+        <div class="stat-item" style="grid-column:span 2">
+          <div class="stat-value" style="color:var(--text)">${n}</div>
+          <div class="stat-sub">analisadas</div>
+          <div class="stat-label">Partidas</div>
+        </div>
+      </div>
+      ${multikillHtml ? `<div class="multikill-area">${multikillHtml}</div>` : ''}
+    `, 0);
+  }
+
+  function renderCardModos(matches, champData) {
+    if (!matches.length) return;
+    const modeMap = {};
+    for (const m of matches) {
+      const qid = m.queueId || 0;
+      if (!modeMap[qid]) modeMap[qid] = { wins:0, games:0, kills:0, deaths:0, assists:0, champCount:{} };
+      modeMap[qid].games++;
+      if (m.win) modeMap[qid].wins++;
+      modeMap[qid].kills   += m.kills;
+      modeMap[qid].deaths  += m.deaths;
+      modeMap[qid].assists += m.assists;
+      modeMap[qid].champCount[m.champion] = (modeMap[qid].champCount[m.champion] || 0) + 1;
+    }
+    const sorted = Object.entries(modeMap).sort((a,b) => b[1].games - a[1].games);
+    if (_relatorioData) { _relatorioData.modos = sorted.map(([qid]) => getQueueInfo(Number(qid)).nome); }
+    const itens = sorted.map(([qidStr, st]) => {
+      const qid   = Number(qidStr);
+      const info  = getQueueInfo(qid);
+      const wr    = Math.round((st.wins / st.games) * 100);
+      const wrCls = winrateClass(wr);
+      const wrClr = winrateColor(wr);
+      const kda   = st.deaths > 0 ? ((st.kills + st.assists) / st.deaths).toFixed(2) : (st.kills + st.assists).toFixed(2);
+      const avgK  = (st.kills   / st.games).toFixed(1);
+      const avgD  = (st.deaths  / st.games).toFixed(1);
+      const avgA  = (st.assists / st.games).toFixed(1);
+      const mjEntry = Object.entries(st.champCount).sort((a,b) => b[1]-a[1])[0];
+      const mjNome  = mjEntry ? mjEntry[0] : null;
+      const mjIcon  = mjNome && champData.icons[mjNome] ? champData.icons[mjNome] : null;
+      const mjHtml = mjNome
+        ? `<div class="modo-mj"><img src="${mjIcon || getFallbackIcon24(mjNome)}" alt="${mjNome}" loading="lazy" onerror="this.onerror=null;this.src=getFallbackIcon24(this.alt)" /><strong>${mjNome}</strong> (${mjEntry[1]}x)</div>`
+        : '';
+      return `
+        <div class="modo-item" style="border-left-color:${info.color}">
+          <div class="modo-header">
+            <div class="modo-icon">${info.icon}</div>
+            <div class="modo-nome">${info.nome}</div>
+            <div class="modo-games">${st.games} partida${st.games > 1 ? 's' : ''}</div>
+          </div>
+          <div class="modo-wr-row">
+            <div class="modo-wr-bar-bg"><div class="modo-wr-bar-fill ${wrCls}" style="width:${wr}%"></div></div>
+            <div class="modo-wr-pct" style="color:${wrClr}">${wr}%</div>
+          </div>
+          <div class="modo-meta">
+            <div class="modo-kda">KDA: <strong>${kda}</strong> &nbsp;<span style="opacity:.6">${avgK}/${avgD}/${avgA}</span></div>
+            ${mjHtml}
+          </div>
+        </div>`;
+    }).join('');
+    criarCard('card-modos', `
+      <div class="card-title">Modos de Jogo</div>
+      <div class="modos-lista">${itens}</div>
+    `, 60);
+  }
+
+  function renderCardCampeoesRecentes(matches, champData) {
+    if (!matches.length) return;
+    const modeLabel = _activeFilter !== 0 ? ` — ${getQueueInfo(_activeFilter).nome}` : '';
+    const champMap = {};
+    for (const m of matches) {
+      if (!champMap[m.champion]) champMap[m.champion] = { wins:0, games:0, kills:0, deaths:0, assists:0 };
+      champMap[m.champion].games++;
+      if (m.win) champMap[m.champion].wins++;
+      champMap[m.champion].kills   += m.kills;
+      champMap[m.champion].deaths  += m.deaths;
+      champMap[m.champion].assists += m.assists;
+    }
+    const sorted = Object.entries(champMap).sort((a,b) => b[1].games - a[1].games).slice(0, 5);
+    const itens = sorted.map(([nome, st]) => {
+      const wr     = Math.round((st.wins / st.games) * 100);
+      const kdaVal = st.deaths > 0 ? ((st.kills+st.assists)/st.deaths).toFixed(2) : (st.kills+st.assists).toFixed(2);
+      const avgKDA = `${(st.kills/st.games).toFixed(1)} / ${(st.deaths/st.games).toFixed(1)} / ${(st.assists/st.games).toFixed(1)}`;
+      const icon   = champData.icons[nome] || getFallbackIcon(nome);
+      const cls    = winrateClass(wr);
+      const clr    = winrateColor(wr);
+      return `
+        <div class="champ-recent-item">
+          <img class="champ-recent-icon" src="${icon}" alt="${nome}" loading="lazy" onerror="this.onerror=null;this.src=getFallbackIcon(this.alt)" />
+          <div class="champ-recent-info">
+            <div class="champ-recent-nome">${nome}</div>
+            <div class="champ-recent-stats">KDA: <strong style="color:var(--text)">${kdaVal}</strong> &nbsp;(${avgKDA})</div>
+            <div class="champ-recent-bar-bg"><div class="champ-recent-bar-fill ${cls}" style="width:${wr}%"></div></div>
+          </div>
+          <div class="champ-recent-games">${st.games}x</div>
+          <div class="champ-recent-wr" style="color:${clr};background:${clr}22;border:1px solid ${clr}55">${wr}%</div>
+        </div>`;
+    }).join('');
+    criarCard('card-champ-recentes', `
+      <div class="card-title">Campeões Recentes${modeLabel}</div>
+      <div class="champ-recent-lista">${itens}</div>
+    `, 120);
+  }
+
+  function renderCardPartidas(matches, champData) {
+    if (!matches || matches.length === 0) {
+      criarCard('card-partidas', `<div class="card-title">Últimas Partidas</div><div class="nao-ranqueado">Nenhuma partida recente encontrada.</div>`, 180);
+      return;
+    }
+    const modeLabel = _activeFilter !== 0 ? ` — ${getQueueInfo(_activeFilter).nome}` : '';
+    const total = matches.length;
+    const vits  = matches.filter(m => m.win).length;
+    const wr    = Math.round((vits / total) * 100);
+    const wrColor = winrateColor(wr);
+    if (_relatorioData && _activeFilter === 0) { _relatorioData.recentWr = wr; _relatorioData.recentGames = total; }
+    let streakCount = 0, streakType = null;
+    for (const m of matches) {
+      if (streakType === null) { streakType = m.win; streakCount = 1; }
+      else if (m.win === streakType) streakCount++;
+      else break;
+    }
+    const streakHtml = streakCount >= 2
+      ? `<div class="streak-badge ${streakType ? 'streak-win' : 'streak-loss'}">${streakType ? '🔥' : '❄️'} ${streakCount} ${streakType ? 'vitórias' : 'derrotas'} seguidas</div>`
+      : '';
+    const badges = matches.map(m =>
+      m.win ? `<div class="badge-v" title="${m.champion}">V</div>` : `<div class="badge-d" title="${m.champion}">D</div>`
+    ).join('');
+    const champCount = {};
+    for (const m of matches) champCount[m.champion] = (champCount[m.champion] || 0) + 1;
+    const maisJogado = Object.entries(champCount).sort((a,b) => b[1]-a[1])[0];
+    const mjNome  = maisJogado ? maisJogado[0] : null;
+    const mjCount = maisJogado ? maisJogado[1] : 0;
+    const mjIcon  = mjNome && champData.icons[mjNome] ? champData.icons[mjNome] : (mjNome ? getFallbackIcon(mjNome) : null);
+    const mjHtml  = mjNome ? `
+      <div class="partidas-mais-jogado">
+        <img src="${mjIcon}" alt="${mjNome}" loading="lazy" onerror="this.onerror=null;this.src=getFallbackIcon(this.alt)" />
+        <div class="partidas-mais-jogado-info">Mais jogado: <strong>${mjNome}</strong> — ${mjCount}x nas últimas ${total} partidas</div>
+      </div>` : '';
+    criarCard('card-partidas', `
+      <div class="card-title">Últimas ${total} Partidas${modeLabel}</div>
+      ${streakHtml}
+      <div class="partidas-inner">
+        <div class="partidas-winrate-bloco">
+          <div class="partidas-wr-num" style="color:${wrColor}">${wr}%</div>
+          <div class="partidas-wr-label">Winrate</div>
+        </div>
+        <div class="partidas-badges">${badges}</div>
+        ${mjHtml}
+      </div>
+    `, 180);
+  }
+
+  function renderCardHistorico(matches, champData) {
+    if (!matches || matches.length === 0) return;
+    const modeLabel = _activeFilter !== 0 ? ` — ${getQueueInfo(_activeFilter).nome}` : '';
+    const itens = matches.map((m, idx) => {
+      const icon        = champData.icons[m.champion] || getFallbackIcon40(m.champion);
+      const resultClass = m.win ? 'vitoria' : 'derrota';
+      const resultCls   = m.win ? 'v' : 'd';
+      const kda         = m.deaths > 0 ? (m.kills+m.assists)/m.deaths : m.kills+m.assists;
+      const kdaColor    = kda >= 4 ? 'var(--gold-light)' : kda >= 2.5 ? 'var(--blue)' : kda >= 1.5 ? 'var(--text)' : 'var(--red)';
+      const kdaVal      = kda.toFixed(2);
+      let multikillHtml = '';
+      if (m.pentaKills  > 0) multikillHtml = `<span class="historico-multikill penta">PENTA</span>`;
+      else if (m.quadraKills > 0) multikillHtml = `<span class="historico-multikill quadra">QUADRA</span>`;
+      else if (m.tripleKills > 0) multikillHtml = `<span class="historico-multikill triple">TRIPLE</span>`;
+      const durStr   = formatDuration(m.duration);
+      const qInfo    = getQueueInfo(m.queueId || 0);
+      const qTagHtml = `<span class="historico-queue-tag" style="background:${qInfo.color}22;color:${qInfo.color};border:1px solid ${qInfo.color}55">${qInfo.icon} ${qInfo.nome}</span>`;
+      return `
+        <div class="historico-item ${resultClass}" style="animation-delay:${idx*30}ms">
+          <img class="historico-champ-icon" src="${icon}" alt="${m.champion}" loading="lazy" onerror="this.onerror=null;this.src=getFallbackIcon40(this.alt)" />
+          <div class="historico-resultado ${resultCls}">${m.win ? 'V' : 'D'}</div>
+          <div class="historico-champ-nome" title="${m.champion}">${m.champion}</div>
+          ${qTagHtml}
+          <div class="historico-kda" style="color:${kdaColor}">${kdaVal} <span>KDA</span><br/><span>${m.kills}/${m.deaths}/${m.assists}</span></div>
+          <div class="historico-stats">
+            <div class="historico-stat">
+              <div class="historico-stat-val" style="color:var(--red)">${(m.damage/1000).toFixed(1)}k</div>
+              <div class="historico-stat-lbl">Dano</div>
+            </div>
+            <div class="historico-stat">
+              <div class="historico-stat-val" style="color:var(--blue)">${m.cs}</div>
+              <div class="historico-stat-lbl">CS</div>
+            </div>
+            <div class="historico-stat">
+              <div class="historico-stat-val" style="color:var(--blue)">${m.csPerMin.toFixed(1)}</div>
+              <div class="historico-stat-lbl">CS/min</div>
+            </div>
+            <div class="historico-stat">
+              <div class="historico-stat-val" style="color:var(--text-dim)">${m.vision}</div>
+              <div class="historico-stat-lbl">Vision</div>
+            </div>
+          </div>
+          ${multikillHtml}
+          <div class="historico-duracao">${durStr}</div>
+        </div>`;
+    }).join('');
+    criarCard('card-historico', `
+      <div class="card-title">Histórico${modeLabel} — ${matches.length} Partidas</div>
+      <div class="historico-lista">${itens}</div>
+    `, 240);
+  }
+
+  function renderCardLane(matches) {
+    if (!matches || matches.length === 0) return;
+    const modeLabel = _activeFilter !== 0 ? ` — ${getQueueInfo(_activeFilter).nome}` : '';
+    const n = matches.length;
+    const avgK   = matches.reduce((s,m) => s + m.kills,   0) / n;
+    const avgDmg = matches.reduce((s,m) => s + m.damage,  0) / n;
+    const avgA   = matches.reduce((s,m) => s + m.assists, 0) / n;
+    const avgVis = matches.reduce((s,m) => s + m.vision,  0) / n;
+    const avgD   = matches.reduce((s,m) => s + m.deaths,  0) / n;
+    const avgCs  = matches.reduce((s,m) => s + m.csPerMin,0) / n;
+    const agressividade = Math.min(Math.round((avgK/10*50)+(avgDmg/30000*50)), 100);
+    const utilidade     = Math.min(Math.round((avgA/15*60)+(avgVis/60*40)), 100);
+    const consistencia  = Math.min(Math.round(Math.max(0,(1-avgD/10)*100)), 100);
+    const farming       = Math.min(Math.round((avgCs/10)*100), 100);
+    const metricas = [
+      { label:'Agressividade', icon:'⚔️', val:agressividade, desc:`Baseado em kills médias (${avgK.toFixed(1)}) e dano médio (${(avgDmg/1000).toFixed(1)}k). ${agressividade>=65?'Jogador muito agressivo — cuidado com trocas.':agressividade>=40?'Nível de agressividade moderado.':'Jogador passivo — aproveite para pressionar.'}` },
+      { label:'Utilidade',     icon:'🛡️', val:utilidade,     desc:`Baseado em assists médias (${avgA.toFixed(1)}) e vision score médio (${Math.round(avgVis)}). ${utilidade>=65?'Excelente suporte ao time.':utilidade>=40?'Contribuição moderada ao time.':'Pouca contribuição coletiva.'}` },
+      { label:'Consistência',  icon:'🎯', val:consistencia,  desc:`Baseado em mortes médias (${avgD.toFixed(1)} por partida). ${consistencia>=65?'Jogador consistente — morre pouco.':consistencia>=40?'Consistência mediana.':'Morre com frequência — explore isso.'}` },
+      { label:'Farming',       icon:'🌾', val:farming,       desc:`CS/min médio: ${avgCs.toFixed(2)}. ${farming>=65?'Excelente farmer — vantagem de recursos.':farming>=40?'Farming razoável.':'Farming fraco — pode ser explorado.'}` },
+    ];
+    const itensHtml = metricas.map(m => {
+      const cls = laneBarClass(m.val);
+      const clr = laneBarColor(m.val);
+      return `
+        <div class="lane-metrica-item">
+          <div class="lane-metrica-header">
+            <div class="lane-metrica-label"><span class="metrica-icon">${m.icon}</span>${m.label}</div>
+            <div class="lane-metrica-valor" style="color:${clr}">${m.val}/100</div>
+          </div>
+          <div class="lane-bar-bg"><div class="lane-bar-fill ${cls}" style="width:${m.val}%"></div></div>
+          <div class="lane-metrica-desc">${m.desc}</div>
+        </div>`;
+    }).join('');
+    criarCard('card-lane', `
+      <div class="card-title">Estilo de Jogo${modeLabel}</div>
+      <div class="lane-metricas">${itensHtml}</div>
+    `, 300);
+  }
+
+  function gerarTextoRelatorio() {
+    if (!_relatorioData) return '';
+    const d = _relatorioData;
+    const linhas = [
+      `╔══════════════════════════════════════╗`,
+      `   LoL Scout — Relatório de Batalha`,
+      `╚══════════════════════════════════════╝`,
+      ``,
+      `🎮 Invocador : ${d.gameName}#${d.tagLine}`,
+      `🏆 Elo       : ${d.elo || 'Não ranqueado'}`,
+      `📊 WR Ranked : ${d.rankedWr !== undefined ? d.rankedWr + '%' : '—'} (${d.rankedTotal || 0} partidas)`,
+      `🎮 Modos Jogados: ${d.modos ? d.modos.join(', ') : '—'}`,
+      ``,
+      `⚔  KDA Médio : ${d.kda ? d.kda.toFixed(2) : '—'} (${d.avgK ? d.avgK.toFixed(1) : '—'} / ${d.avgD ? d.avgD.toFixed(1) : '—'} / ${d.avgA ? d.avgA.toFixed(1) : '—'})`,
+      `📈 WR Recente: ${d.recentWr !== undefined ? d.recentWr + '%' : '—'} (${d.recentGames || 0} partidas)`,
+      ``,
+      `🔥 Nível de Ameaça: ${d.threatScore !== undefined ? d.threatScore + '/100' : '—'} — ${d.threatLevel || '—'}`,
+      ``,
+      `Gerado em: ${new Date().toLocaleString('pt-BR')}`,
+      `LoL Scout • Não afiliado à Riot Games`
+    ];
+    return linhas.join('\n');
+  }
+
+  async function buscarDados(riotId) {
+    limparCards();
+    const btn = document.getElementById('btnBuscar');
+    btn.disabled = true;
+    try {
+      const partes = riotId.trim().split('#');
+      if (partes.length < 2 || !partes[0] || !partes[1]) {
+        setLoading(false);
+        criarCardErro('Formato inválido', 'Use o formato <strong>NickName#TAG</strong>. Exemplo: Faker#KR1');
+        btn.disabled = false;
+        return;
+      }
+      const [gameName, tagLine] = partes;
+      setLoading(true, 0);
+      _relatorioData = { gameName, tagLine };
+
+      setLoading(true, 1);
+      let riotAccount;
+      try {
+        riotAccount = await riotFetch(`https://${REGIONAL}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`);
+      } catch(e) {
+        setLoading(false);
+        if (e.status === 404) criarCardErro('Invocador não encontrado', `Não foi possível encontrar <strong>${gameName}#${tagLine}</strong>. Verifique o nick e a tag.`);
+        else if (e.status === 401 || e.status === 403) criarCardErro('API Key inválida ou expirada', 'Gere uma nova em <a href="https://developer.riotgames.com" target="_blank" style="color:var(--gold)">developer.riotgames.com</a>.');
+        else criarCardErro('Erro de conexão', `Verifique se o Node.js está rodando. (HTTP ${e.status || '?'})`);
+        btn.disabled = false;
+        return;
+      }
+
+      let summoner;
+      try {
+        summoner = await riotFetch(`https://${REGION}.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${riotAccount.puuid}`);
+      } catch(e) {
+        setLoading(false);
+        criarCardErro('Erro ao buscar invocador', `HTTP ${e.status || '?'}`);
+        btn.disabled = false;
+        return;
+      }
+
+      setLoading(true, 2);
+      let champData;
+      try {
+        champData = await getChampionData();
+      } catch(e) {
+        setLoading(false);
+        criarCardErro('Erro ao carregar campeões', e.msg || 'Não foi possível carregar os dados dos campeões.');
+        btn.disabled = false;
+        return;
+      }
+
+      let rankedData = [];
+      try { rankedData = await riotFetch(`https://${REGION}.api.riotgames.com/lol/league/v4/entries/by-summoner/${summoner.id}`); } catch(_) {}
+
+      const soloRanked = rankedData.find(r => r.queueType === 'RANKED_SOLO_5x5');
+      if (soloRanked) {
+        const tierPT = RANK_PT[soloRanked.tier] || soloRanked.tier;
+        _relatorioData.elo = `${tierPT} ${soloRanked.rank} — ${soloRanked.leaguePoints} LP`;
+        const tot = soloRanked.wins + soloRanked.losses;
+        _relatorioData.rankedWr    = tot > 0 ? Math.round((soloRanked.wins / tot) * 100) : 0;
+        _relatorioData.rankedTotal = tot;
+      }
+
+      setLoading(true, 3);
+      let maestrias = [];
+      try { maestrias = await riotFetch(`https://${REGION}.api.riotgames.com/lol/champion-mastery/v4/champion-masteries/by-puuid/${riotAccount.puuid}/top?count=7`); } catch(_) {}
+
+      setLoading(true, 4);
+      let matchIds = [];
+      try { matchIds = await riotFetch(`https://${REGIONAL}.api.riotgames.com/lol/match/v5/matches/by-puuid/${riotAccount.puuid}/ids?start=0&count=30`); } catch(_) {}
+
+      setLoading(true, 5);
+      const matchDetails = [];
+      for (const matchId of matchIds.slice(0, 30)) {
+        try {
+          const detail = await riotFetch(`https://${REGIONAL}.api.riotgames.com/lol/match/v5/matches/${matchId}`);
+          const p = detail.info.participants.find(pp => pp.puuid === riotAccount.puuid);
+          if (p) {
+            const champId   = String(p.championId);
+            const champName = champData.names[champId] || p.championName || `Campeão ${champId}`;
+            const durMin    = detail.info.gameDuration / 60;
+            const cs        = (p.totalMinionsKilled || 0) + (p.neutralMinionsKilled || 0);
+            const teamKills = detail.info.participants
+              .filter(pp => pp.teamId === p.teamId)
+              .reduce((s, pp) => s + pp.kills, 0);
+            matchDetails.push({
+              win:         p.win,
+              champion:    champName,
+              queueId:     detail.info.queueId || 0,
+              kills:       p.kills       || 0,
+              deaths:      p.deaths      || 0,
+              assists:     p.assists     || 0,
+              cs:          cs,
+              csPerMin:    durMin > 0 ? cs / durMin : 0,
+              damage:      p.totalDamageDealtToChampions || 0,
+              vision:      p.visionScore || 0,
+              duration:    detail.info.gameDuration,
+              pentaKills:  p.pentaKills  || 0,
+              quadraKills: p.quadraKills || 0,
+              tripleKills: p.tripleKills || 0,
+              teamKills:   teamKills
+            });
+          }
+        } catch(_) {}
+      }
+
+      setLoading(false);
+
+      _allMatchDetails = matchDetails;
+      _champDataGlobal = champData;
+      _activeFilter    = 0;
+
+      renderCardPerfil(summoner, riotAccount);
+      renderCardThreat(rankedData, matchDetails);
+      renderCardRanked(rankedData);
+      if (maestrias.length > 0) renderCardMaestrias(maestrias, champData);
+
+      if (matchDetails.length > 0) showFilterBar(matchDetails);
+
+      renderDynamicCards(matchDetails, champData);
+
+      document.getElementById('copyReportWrapper').classList.add('visivel');
+
+    } catch(e) {
+      setLoading(false);
+      criarCardErro('Erro inesperado', e.message || String(e));
+    }
+    btn.disabled = false;
+  }
+
+  document.getElementById('btnCopyReport').addEventListener('click', async () => {
+    const texto = gerarTextoRelatorio();
+    if (!texto) return;
+    try {
+      await navigator.clipboard.writeText(texto);
+      const btn = document.getElementById('btnCopyReport');
+      const txt = document.getElementById('btnCopyReportText');
+      btn.classList.add('copiado');
+      txt.textContent = '✓ Copiado!';
+      setTimeout(() => { btn.classList.remove('copiado'); txt.textContent = 'COPIAR RELATÓRIO'; }, 2000);
+    } catch(e) { alert('Não foi possível copiar. Tente manualmente.'); }
+  });
+
+  document.getElementById('btnBuscar').addEventListener('click', () => {
+    const val = document.getElementById('inputRiotId').value.trim();
+    if (val) buscarDados(val);
+  });
+
+  document.getElementById('inputRiotId').addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const val = e.target.value.trim();
+      if (val) buscarDados(val);
+    }
+  });
+</script>
+</body>
+</html>
