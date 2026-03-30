@@ -5,7 +5,7 @@ const path = require('path');
 const url = require('url');
 
 // ─── Configuração ────────────────────────────────────────────────────────────
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 const API_KEY = "RGAPI-5f9863c6-fd24-4215-b0d5-96682382481d";
 
 // ─── Cores para o terminal (ANSI escape codes) ───────────────────────────────
@@ -253,7 +253,7 @@ servidor.on('error', (erro) => {
 });
 
 // ─── Inicia o servidor e exibe o banner no terminal ──────────────────────────
-servidor.listen(PORT, () => {
+servidor.listen(PORT, '0.0.0.0', () => {
   const banner = `
 ${cores.ciano}${cores.negrito}╔══════════════════════════════════════╗
 ║   🎮  LOL SCOUT - Servidor Local     ║
