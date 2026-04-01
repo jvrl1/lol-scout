@@ -77,6 +77,75 @@
     .btn-search:hover { opacity: 0.9; transform: translateY(-1px); }
     .btn-search:active { transform: translateY(0); }
     .btn-search:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Autocomplete dropdown */
+    .search-autocomplete-wrap { position: relative; flex: 1; display: flex; flex-direction: column; }
+    .autocomplete-dropdown {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0; right: 0;
+      background: var(--bg-card);
+      border: 1px solid var(--gold);
+      border-radius: 8px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(200,155,60,0.1);
+      z-index: 100;
+      overflow: hidden;
+      animation: fadeInUp 0.15s ease both;
+    }
+    .autocomplete-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border-dim);
+      transition: background 0.15s;
+    }
+    .autocomplete-item:last-child { border-bottom: none; }
+    .autocomplete-item:hover, .autocomplete-item.focused {
+      background: rgba(200,155,60,0.1);
+    }
+    .autocomplete-item-icon { font-size: 1.2rem; flex-shrink: 0; opacity: 0.7; }
+    .autocomplete-item-name {
+      font-family: 'Cinzel', serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text);
+      flex: 1;
+    }
+    .autocomplete-item-tag {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 0.8rem;
+      color: var(--gold);
+      background: rgba(200,155,60,0.12);
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid rgba(200,155,60,0.3);
+    }
+    .autocomplete-loading {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 16px;
+      color: var(--text-dim);
+      font-size: 0.88rem;
+      font-family: 'Rajdhani', sans-serif;
+    }
+    .autocomplete-loading .mini-spin {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(200,155,60,0.2);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+    .autocomplete-empty {
+      padding: 14px 16px;
+      color: var(--text-dim);
+      font-size: 0.85rem;
+      font-family: 'Rajdhani', sans-serif;
+      text-align: center;
+    }
     .loading-area { display: none; flex-direction: column; align-items: center; gap: 24px; padding: 60px 20px; animation: fadeIn 0.3s ease; }
     .loading-area.ativo { display: flex; }
     .spinner { width: 56px; height: 56px; border: 3px solid rgba(200,155,60,0.15); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; }
@@ -156,6 +225,13 @@
     .perfil-info { flex: 1; min-width: 180px; }
     .perfil-nome { font-family: 'Cinzel', serif; font-size: clamp(1.2rem, 3vw, 1.7rem); font-weight: 700; color: var(--gold-light); line-height: 1.2; }
     .perfil-nome span { color: var(--text-dim); font-weight: 400; }
+    .perfil-elo-stack { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
+    .perfil-elo { display: inline-flex; align-items: center; gap: 8px; font-family: 'Cinzel', serif; font-size: 0.83rem; font-weight: 600; color: var(--gold-light); letter-spacing: 0.04em; }
+    .perfil-elo.flex-elo { color: var(--blue); }
+    .perfil-elo.unranked { font-family: 'Rajdhani', sans-serif; font-weight: 400; color: var(--text-dim); font-size: 0.9rem; letter-spacing: 0; }
+    .perfil-elo-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); flex-shrink: 0; }
+    .perfil-elo.flex-elo .perfil-elo-dot { background: var(--blue); }
+    .perfil-elo-mode { font-family: 'Rajdhani', sans-serif; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.7; }
     .perfil-puuid { font-size: 0.75rem; color: var(--text-dim); margin-top: 6px; word-break: break-all; font-family: monospace; }
 
     .ranked-inner { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
@@ -343,9 +419,12 @@
   </header>
 
   <div class="search-wrapper">
-    <div class="search-box">
-      <span class="search-icon">⚔</span>
-      <input class="search-input" id="inputRiotId" type="text" placeholder="NickName#BR1" autocomplete="off" spellcheck="false" />
+    <div class="search-autocomplete-wrap">
+      <div class="search-box" id="searchBox">
+        <span class="search-icon">⚔</span>
+        <input class="search-input" id="inputRiotId" type="text" placeholder="Digite o nick do oponente..." autocomplete="off" spellcheck="false" />
+      </div>
+      <div class="autocomplete-dropdown" id="autocompleteDropdown" style="display:none;"></div>
     </div>
     <button class="btn-search" id="btnBuscar">ANALISAR</button>
   </div>
@@ -406,7 +485,27 @@
     return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
   }
 
-  const API_KEY  = "RGAPI-5f9863c6-fd24-4215-b0d5-96682382481d";
+  // ── getChampIcon: retorna URL real da foto do campeão via Data Dragon ──
+  // Usa ID numérico primeiro (evita mismatch de nomes como Wukong/MonkeyKing)
+  function getChampIcon(champName, champData, champId) {
+    if (!champData) return getFallbackIcon(champName);
+    const sid = champId != null ? String(champId) : null;
+    // 1) Lookup por ID numérico — mais confiável
+    if (sid && champData.fileIds && champData.fileIds[sid]) {
+      return `https://ddragon.leagueoflegends.com/cdn/${champData.versao}/img/champion/${champData.fileIds[sid]}.png`;
+    }
+    // 2) Lookup por nome display
+    if (champName && champData.icons && champData.icons[champName]) {
+      return champData.icons[champName];
+    }
+    // 3) Constrói URL direta removendo caracteres especiais do nome
+    if (champName && champData.versao) {
+      return `https://ddragon.leagueoflegends.com/cdn/${champData.versao}/img/champion/${champName.replace(/[^a-zA-Z0-9]/g, '')}.png`;
+    }
+    return getFallbackIcon(champName);
+  }
+
+  // API Key gerenciada pelo servidor via .env — frontend não precisa conhecê-la
   const REGION   = "br1";
   const REGIONAL = "americas";
 
@@ -457,7 +556,7 @@
   let _activeFilter    = 0;
 
   async function riotFetch(url) {
-    const res = await fetch(`/riot-proxy?url=${encodeURIComponent(url)}&key=${encodeURIComponent(API_KEY)}`);
+    const res = await fetch(`/riot-proxy?url=${encodeURIComponent(url)}`);
     if (!res.ok) {
       const err = { status: res.status };
       try { const j = await res.json(); err.message = j?.status?.message || ''; } catch(_) {}
@@ -478,12 +577,13 @@
       const versoes = await proxyFetch('https://ddragon.leagueoflegends.com/api/versions.json');
       const versao  = versoes[0];
       const data    = await proxyFetch(`https://ddragon.leagueoflegends.com/cdn/${versao}/data/pt_BR/champion.json`);
-      const names = {}, icons = {};
+      const names = {}, icons = {}, fileIds = {};
       for (const champ of Object.values(data.data)) {
         names[champ.key] = champ.name;
         icons[champ.name] = `https://ddragon.leagueoflegends.com/cdn/${versao}/img/champion/${champ.id}.png`;
+        fileIds[champ.key] = champ.id; // Ex: "266" -> "Aatrox"
       }
-      _champDataCache = { names, icons, versao };
+      _champDataCache = { names, icons, fileIds, versao };
       return _champDataCache;
     } catch (e) {
       throw { tipo: 'ddragon', msg: 'Não foi possível carregar os dados dos campeões via proxy.' };
@@ -601,7 +701,25 @@
 
   function getRankedEmblemUrl(tier) {
     if (!tier) return null;
-    return `https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-shared-components/global/default/images/ranked-mini-crests/${tier.toLowerCase()}.png`;
+    // Roteado pelo proxy local — garante carregamento independente de CORS/politica do browser
+    const cdnUrl = `https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-shared-components/global/default/images/ranked-mini-crests/${tier.toLowerCase()}.png`;
+    return `/riot-proxy?url=${encodeURIComponent(cdnUrl)}`;
+  }
+
+  function getRankedEmblemFallback(tier) {
+    const colors = {
+      IRON:'#8e8e8e', BRONZE:'#cd7f32', SILVER:'#c0c0c0', GOLD:'#c89b3c',
+      PLATINUM:'#3ac898', EMERALD:'#00c853', DIAMOND:'#6ec6ff',
+      MASTER:'#9b59b6', GRANDMASTER:'#e74c3c', CHALLENGER:'#0bc4e3'
+    };
+    const c = colors[tier] || '#7a8fa6';
+    const letter = (tier || '?')[0].toUpperCase();
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+      `<svg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72'>`+
+      `<circle cx='36' cy='36' r='34' fill='${c}' opacity='0.18' stroke='${c}' stroke-width='2'/>`+
+      `<text x='36' y='46' text-anchor='middle' fill='${c}' font-size='32' font-weight='bold' font-family='Arial,sans-serif'>${letter}</text>`+
+      `</svg>`
+    )}`
   }
 
   function winrateClass(wr) {
@@ -636,28 +754,54 @@
 
   // ── Cards ESTÁTICOS ──
 
-  function renderCardPerfil(summoner, riotAccount) {
-    const gameName = riotAccount?.gameName || summoner.name || '—';
-    const tagLine  = riotAccount?.tagLine  || '';
-    const iconUrl  = `https://ddragon.leagueoflegends.com/cdn/14.10.1/img/profileicon/${summoner.profileIconId}.png`;
+  function renderCardPerfil(summoner, riotAccount, rankedData, versao) {
+    const gameName  = riotAccount?.gameName || summoner.name || '—';
+    const tagLine   = riotAccount?.tagLine  || '';
+    const icVersao  = versao || '15.1.1';
+    const iconUrl   = `https://ddragon.leagueoflegends.com/cdn/${icVersao}/img/profileicon/${summoner.profileIconId}.png`;
+    const fallback  = `https://ddragon.leagueoflegends.com/cdn/${icVersao}/img/profileicon/29.png`;
+
+    // Badges de elo — exibe Solo/Duo E Flex independentemente
+    let eloBadgeHtml = '';
+    if (rankedData && rankedData.length > 0) {
+      const solo = rankedData.find(r => r.queueType === 'RANKED_SOLO_5x5');
+      const flex = rankedData.find(r => r.queueType === 'RANKED_FLEX_SR');
+      const badges = [];
+      if (solo) {
+        const tierPT = RANK_PT[solo.tier] || solo.tier;
+        badges.push(`<div class="perfil-elo"><span class="perfil-elo-dot"></span>${tierPT} ${solo.rank} &mdash; ${solo.leaguePoints} LP <span class="perfil-elo-mode">Solo/Duo</span></div>`);
+      }
+      if (flex) {
+        const tierPT = RANK_PT[flex.tier] || flex.tier;
+        badges.push(`<div class="perfil-elo flex-elo"><span class="perfil-elo-dot"></span>${tierPT} ${flex.rank} &mdash; ${flex.leaguePoints} LP <span class="perfil-elo-mode">Flex</span></div>`);
+      }
+      eloBadgeHtml = badges.length > 0
+        ? `<div class="perfil-elo-stack">${badges.join('')}</div>`
+        : `<div class="perfil-elo-stack"><div class="perfil-elo unranked">— Sem Ranking esta temporada</div></div>`;
+    }
+
     criarCardStatic('card-perfil', `
       <div class="card-title">Invocador</div>
       <div class="perfil-inner">
         <div class="perfil-icon-wrap">
-          <img class="perfil-icon" src="${iconUrl}" alt="Ícone" loading="lazy" onerror="this.onerror=null;this.src='https://ddragon.leagueoflegends.com/cdn/14.10.1/img/profileicon/29.png'" />
+          <img class="perfil-icon" src="${iconUrl}" alt="Ícone" loading="lazy" onerror="this.onerror=null;this.src='${fallback}'" />
           <div class="perfil-level">Nv ${summoner.summonerLevel}</div>
         </div>
         <div class="perfil-info">
           <div class="perfil-nome">${gameName}<span>#${tagLine}</span></div>
+          ${eloBadgeHtml}
           <div class="perfil-puuid">${summoner.puuid}</div>
         </div>
       </div>`, 0);
   }
 
-  function renderCardRanked(rankedData) {
+  function renderCardRanked(rankedData, rankedFailed) {
     const solo = rankedData.find(r => r.queueType === 'RANKED_SOLO_5x5');
     if (!solo) {
-      criarCardStatic('', `<div class="card-title">Ranked Solo/Duo</div><div class="nao-ranqueado">Sem dados de ranked nesta temporada.</div>`, 100);
+      const msg = rankedFailed
+        ? '⚠️ Erro ao buscar ranking — abra o DevTools (F12 → Console) para detalhes.'
+        : 'Invocador não ranqueado nesta temporada.';
+      criarCardStatic('', `<div class="card-title">Ranked Solo/Duo</div><div class="nao-ranqueado">${msg}</div>`, 100);
     } else {
       const tierPT = RANK_PT[solo.tier] || solo.tier;
       const total  = solo.wins + solo.losses;
@@ -667,7 +811,7 @@
       criarCardStatic('', `
         <div class="card-title">Ranked Solo/Duo</div>
         <div class="ranked-inner">
-          ${emblem ? `<img class="ranked-emblem" src="${emblem}" alt="${solo.tier}" loading="lazy" onerror="this.style.display='none'" />` : ''}
+          ${emblem ? `<img class="ranked-emblem" src="${emblem}" alt="${solo.tier}" loading="lazy" onerror="this.onerror=null;this.src=getRankedEmblemFallback('${solo.tier}')" />` : `<img class="ranked-emblem" src="${getRankedEmblemFallback(solo.tier)}" alt="${solo.tier}" />`}
           <div class="ranked-info">
             <div class="ranked-elo">${tierPT} ${solo.rank}</div>
             <div class="ranked-lp">${solo.leaguePoints} LP</div>
@@ -689,7 +833,7 @@
       criarCardStatic('', `
         <div class="card-title" style="color:var(--blue)">Ranked Flex 5x5</div>
         <div class="ranked-inner">
-          ${emblem ? `<img class="ranked-emblem" src="${emblem}" alt="${flex.tier}" loading="lazy" onerror="this.style.display='none'" style="filter:drop-shadow(0 0 8px rgba(11,196,227,0.4))" />` : ''}
+          ${emblem ? `<img class="ranked-emblem" src="${emblem}" alt="${flex.tier}" loading="lazy" onerror="this.onerror=null;this.src=getRankedEmblemFallback('${flex.tier}')" style="filter:drop-shadow(0 0 8px rgba(11,196,227,0.4))" />` : `<img class="ranked-emblem" src="${getRankedEmblemFallback(flex.tier)}" alt="${flex.tier}" style="filter:drop-shadow(0 0 8px rgba(11,196,227,0.4))" />`}
           <div class="ranked-info">
             <div class="ranked-elo" style="color:var(--blue)">${tierPT} ${flex.rank}</div>
             <div class="ranked-lp">${flex.leaguePoints} LP</div>
@@ -749,7 +893,7 @@
     const maxPts = top[0]?.championPoints || 1;
     const itens  = top.map(m => {
       const nome  = champData.names[String(m.championId)] || `Campeão ${m.championId}`;
-      const icon  = champData.icons[nome] || '';
+      const icon  = getChampIcon(nome, champData, m.championId);
       const pts   = m.championPoints.toLocaleString('pt-BR');
       const pct   = Math.round((m.championPoints / maxPts) * 100);
       const nivel = m.championLevel;
@@ -863,7 +1007,7 @@
       const avgA  = (st.assists / st.games).toFixed(1);
       const mjEntry = Object.entries(st.champCount).sort((a,b) => b[1]-a[1])[0];
       const mjNome  = mjEntry ? mjEntry[0] : null;
-      const mjIcon  = mjNome && champData.icons[mjNome] ? champData.icons[mjNome] : null;
+      const mjIcon  = mjNome ? getChampIcon(mjNome, champData) : null;
       const mjHtml = mjNome
         ? `<div class="modo-mj"><img src="${mjIcon || getFallbackIcon24(mjNome)}" alt="${mjNome}" loading="lazy" onerror="this.onerror=null;this.src=getFallbackIcon24(this.alt)" /><strong>${mjNome}</strong> (${mjEntry[1]}x)</div>`
         : '';
@@ -907,7 +1051,7 @@
       const wr     = Math.round((st.wins / st.games) * 100);
       const kdaVal = st.deaths > 0 ? ((st.kills+st.assists)/st.deaths).toFixed(2) : (st.kills+st.assists).toFixed(2);
       const avgKDA = `${(st.kills/st.games).toFixed(1)} / ${(st.deaths/st.games).toFixed(1)} / ${(st.assists/st.games).toFixed(1)}`;
-      const icon   = champData.icons[nome] || getFallbackIcon(nome);
+      const icon   = getChampIcon(nome, champData);
       const cls    = winrateClass(wr);
       const clr    = winrateColor(wr);
       return `
@@ -956,7 +1100,7 @@
     const maisJogado = Object.entries(champCount).sort((a,b) => b[1]-a[1])[0];
     const mjNome  = maisJogado ? maisJogado[0] : null;
     const mjCount = maisJogado ? maisJogado[1] : 0;
-    const mjIcon  = mjNome && champData.icons[mjNome] ? champData.icons[mjNome] : (mjNome ? getFallbackIcon(mjNome) : null);
+    const mjIcon  = mjNome ? getChampIcon(mjNome, champData) : null;
     const mjHtml  = mjNome ? `
       <div class="partidas-mais-jogado">
         <img src="${mjIcon}" alt="${mjNome}" loading="lazy" onerror="this.onerror=null;this.src=getFallbackIcon(this.alt)" />
@@ -980,7 +1124,7 @@
     if (!matches || matches.length === 0) return;
     const modeLabel = _activeFilter !== 0 ? ` — ${getQueueInfo(_activeFilter).nome}` : '';
     const itens = matches.map((m, idx) => {
-      const icon        = champData.icons[m.champion] || getFallbackIcon40(m.champion);
+      const icon        = getChampIcon(m.champion, champData, m.championId);
       const resultClass = m.win ? 'vitoria' : 'derrota';
       const resultCls   = m.win ? 'v' : 'd';
       const kda         = m.deaths > 0 ? (m.kills+m.assists)/m.deaths : m.kills+m.assists;
@@ -1096,14 +1240,51 @@
     const btn = document.getElementById('btnBuscar');
     btn.disabled = true;
     try {
-      const partes = riotId.trim().split('#');
-      if (partes.length < 2 || !partes[0] || !partes[1]) {
-        setLoading(false);
-        criarCardErro('Formato inválido', 'Use o formato <strong>NickName#TAG</strong>. Exemplo: Faker#KR1');
-        btn.disabled = false;
-        return;
+      let gameName, tagLine;
+      const input = document.getElementById('inputRiotId');
+
+      if (riotId.includes('#')) {
+        // Usuário já forneceu a tag — usa direto
+        const partes = riotId.trim().split('#');
+        gameName = partes[0].trim();
+        tagLine  = partes.slice(1).join('#').trim(); // preserva caso haja # no nome
+        if (!gameName || !tagLine) {
+          setLoading(false);
+          criarCardErro('Formato inválido', 'Use o formato <strong>NickName#TAG</strong>. Exemplo: Faker#KR1');
+          btn.disabled = false;
+          return;
+        }
+      } else {
+        // Sem tag — tenta resolver automaticamente pelo buscador
+        const nomeBusca = riotId.trim();
+        if (nomeBusca.length < 2) {
+          setLoading(false);
+          criarCardErro('Nome muito curto', 'Digite ao menos 2 caracteres do nick do oponente.');
+          btn.disabled = false;
+          return;
+        }
+        setLoading(true, 0);
+        try {
+          const res  = await fetch(`/search-summoner?name=${encodeURIComponent(nomeBusca)}`);
+          const data = await res.json();
+          if (!data.suggestions || data.suggestions.length === 0) {
+            setLoading(false);
+            criarCardErro('Invocador não encontrado', `Não encontramos nenhum jogador com o nick "<strong>${nomeBusca}</strong>" nos servidores BR. Tente adicionar a tag, ex: <strong>${nomeBusca}#BR1</strong>`);
+            btn.disabled = false;
+            return;
+          }
+          gameName = data.suggestions[0].gameName;
+          tagLine  = data.suggestions[0].tagLine;
+          // Atualiza o input com o nome completo encontrado
+          input.value = `${gameName}#${tagLine}`;
+        } catch(_) {
+          setLoading(false);
+          criarCardErro('Erro de conexão', 'Não foi possível buscar o invocador. Verifique se o servidor está rodando.');
+          btn.disabled = false;
+          return;
+        }
       }
-      const [gameName, tagLine] = partes;
+
       setLoading(true, 0);
       _relatorioData = { gameName, tagLine };
 
@@ -1130,6 +1311,22 @@
         return;
       }
 
+      // Riot removeu o campo 'id' do Summoner V4 by-puuid em 2024+
+      // Fallback: busca summonerId nos dados de participante de um match (ainda retorna summonerId)
+      let summonerId = summoner.id;
+      if (!summonerId) {
+        console.warn('[Summoner] Campo id ausente — buscando summonerId via match-v5...');
+        try {
+          const tmpIds = await riotFetch(`https://${REGIONAL}.api.riotgames.com/lol/match/v5/matches/by-puuid/${riotAccount.puuid}/ids?count=1`);
+          if (tmpIds?.length > 0) {
+            const tmpMatch = await riotFetch(`https://${REGIONAL}.api.riotgames.com/lol/match/v5/matches/${tmpIds[0]}`);
+            const tmpP = tmpMatch?.info?.participants?.find(p => p.puuid === riotAccount.puuid);
+            summonerId = tmpP?.summonerId;
+            if (summonerId) console.log('[Summoner] summonerId obtido via match:', summonerId);
+          }
+        } catch(_) { console.warn('[Summoner] Não foi possível obter summonerId via match.'); }
+      }
+
       setLoading(true, 2);
       let champData;
       try {
@@ -1141,8 +1338,20 @@
         return;
       }
 
-      let rankedData = [];
-      try { rankedData = await riotFetch(`https://${REGION}.api.riotgames.com/lol/league/v4/entries/by-summoner/${summoner.id}`); } catch(_) {}
+      // Busca de ranked — usa summonerId resolvido acima
+      let rankedData = [], rankedFailed = false;
+      try {
+        if (summonerId) {
+          rankedData = await riotFetch(`https://${REGION}.api.riotgames.com/lol/league/v4/entries/by-summoner/${summonerId}`);
+          console.log('[Ranked] Resposta da API:', rankedData);
+        } else {
+          rankedFailed = true;
+          console.error('[Ranked] summonerId não disponível — não foi possível buscar dados de ranked.');
+        }
+      } catch(e) {
+        rankedFailed = true;
+        console.error('[Ranked] ERRO ao buscar dados de ranked:', e);
+      }
 
       const soloRanked = rankedData.find(r => r.queueType === 'RANKED_SOLO_5x5');
       if (soloRanked) {
@@ -1161,9 +1370,15 @@
       let matchIds = [];
       try { matchIds = await riotFetch(`https://${REGIONAL}.api.riotgames.com/lol/match/v5/matches/by-puuid/${riotAccount.puuid}/ids?start=0&count=30`); } catch(_) {}
 
+      // Busca partidas de Clash separadamente — podem não estar nas últimas 30
+      let clashMatchIds = [];
+      try { clashMatchIds = await riotFetch(`https://${REGIONAL}.api.riotgames.com/lol/match/v5/matches/by-puuid/${riotAccount.puuid}/ids?queue=700&start=0&count=20`); } catch(_) {}
+      // Merge sem duplicatas (ordem: recentes primeiro, clash no final se novos)
+      const allMatchIds = [...new Set([...matchIds, ...clashMatchIds])];
+
       setLoading(true, 5);
       const matchDetails = [];
-      for (const matchId of matchIds.slice(0, 30)) {
+      for (const matchId of allMatchIds.slice(0, 40)) {
         try {
           const detail = await riotFetch(`https://${REGIONAL}.api.riotgames.com/lol/match/v5/matches/${matchId}`);
           const p = detail.info.participants.find(pp => pp.puuid === riotAccount.puuid);
@@ -1178,6 +1393,7 @@
             matchDetails.push({
               win:         p.win,
               champion:    champName,
+              championId:  String(p.championId),
               queueId:     detail.info.queueId || 0,
               kills:       p.kills       || 0,
               deaths:      p.deaths      || 0,
@@ -1202,9 +1418,9 @@
       _champDataGlobal = champData;
       _activeFilter    = 0;
 
-      renderCardPerfil(summoner, riotAccount);
+      renderCardPerfil(summoner, riotAccount, rankedData, champData?.versao);
       renderCardThreat(rankedData, matchDetails);
-      renderCardRanked(rankedData);
+      renderCardRanked(rankedData, rankedFailed);
       if (maestrias.length > 0) renderCardMaestrias(maestrias, champData);
 
       if (matchDetails.length > 0) showFilterBar(matchDetails);
@@ -1238,12 +1454,130 @@
     if (val) buscarDados(val);
   });
 
-  document.getElementById('inputRiotId').addEventListener('keydown', e => {
-    if (e.key === 'Enter') {
-      const val = e.target.value.trim();
-      if (val) buscarDados(val);
+  // ── Autocomplete ────────────────────────────────────────────────────────────
+  (function() {
+    const input     = document.getElementById('inputRiotId');
+    const dropdown  = document.getElementById('autocompleteDropdown');
+    const searchBox = document.getElementById('searchBox');
+    let debounceTimer = null;
+    let focusedIndex  = -1;
+    let currentSuggestions = [];
+
+    function fecharDropdown() {
+      dropdown.style.display = 'none';
+      dropdown.innerHTML = '';
+      focusedIndex = -1;
+      currentSuggestions = [];
+      searchBox.classList.remove('focus-within');
     }
-  });
+
+    function renderDropdown(items, q) {
+      dropdown.innerHTML = '';
+      if (items.length === 0) {
+        dropdown.innerHTML = `<div class="autocomplete-empty">Nenhum invocador encontrado para "<strong style="color:var(--text)">${q}</strong>"</div>`;
+        dropdown.style.display = 'block';
+        return;
+      }
+      currentSuggestions = items;
+      focusedIndex = -1;
+      items.forEach((item, idx) => {
+        const div = document.createElement('div');
+        div.className = 'autocomplete-item';
+        div.dataset.idx = idx;
+        div.innerHTML = `
+          <span class="autocomplete-item-icon">⚔</span>
+          <span class="autocomplete-item-name">${item.gameName}</span>
+          <span class="autocomplete-item-tag">#${item.tagLine}</span>
+        `;
+        div.addEventListener('mousedown', (e) => {
+          // mousedown prevents blur from firing before click
+          e.preventDefault();
+          selecionarItem(item);
+        });
+        dropdown.appendChild(div);
+      });
+      dropdown.style.display = 'block';
+    }
+
+    function setFocused(idx) {
+      const itens = dropdown.querySelectorAll('.autocomplete-item');
+      itens.forEach(el => el.classList.remove('focused'));
+      if (idx >= 0 && idx < itens.length) {
+        itens[idx].classList.add('focused');
+        focusedIndex = idx;
+      } else {
+        focusedIndex = -1;
+      }
+    }
+
+    function selecionarItem(item) {
+      const riotId = `${item.gameName}#${item.tagLine}`;
+      input.value = riotId;
+      fecharDropdown();
+      buscarDados(riotId);
+    }
+
+    async function buscarSugestoes(query) {
+      if (query.length < 2) { fecharDropdown(); return; }
+
+      // Mostra loading
+      dropdown.innerHTML = `<div class="autocomplete-loading"><div class="mini-spin"></div>Buscando <strong style="color:var(--text)">${query}</strong>...</div>`;
+      dropdown.style.display = 'block';
+
+      try {
+        const res  = await fetch(`/search-summoner?name=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        // Garante que o dropdown ainda é relevante (usuário pode ter apagado enquanto buscava)
+        if (input.value.trim().toLowerCase() !== query.toLowerCase()) return;
+        renderDropdown(data.suggestions || [], query);
+      } catch(_) {
+        fecharDropdown();
+      }
+    }
+
+    // Dispara busca ao digitar (debounce de 400ms)
+    input.addEventListener('input', () => {
+      const q = input.value.trim();
+      clearTimeout(debounceTimer);
+      if (q.length < 2) { fecharDropdown(); return; }
+      debounceTimer = setTimeout(() => buscarSugestoes(q), 400);
+    });
+
+    // Navegação com teclado
+    input.addEventListener('keydown', (e) => {
+      const itens = currentSuggestions;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setFocused(Math.min(focusedIndex + 1, itens.length - 1));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setFocused(Math.max(focusedIndex - 1, -1));
+      } else if (e.key === 'Escape') {
+        fecharDropdown();
+      } else if (e.key === 'Enter') {
+        if (focusedIndex >= 0 && itens[focusedIndex]) {
+          e.preventDefault();
+          selecionarItem(itens[focusedIndex]);
+        } else {
+          const val = input.value.trim();
+          if (val) { fecharDropdown(); buscarDados(val); }
+        }
+      }
+    });
+
+    // Fechar ao clicar fora
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.search-autocomplete-wrap')) fecharDropdown();
+    });
+
+    // Reabrir dropdown ao focar novamente se tiver texto
+    input.addEventListener('focus', () => {
+      const q = input.value.trim();
+      if (q.length >= 2 && currentSuggestions.length > 0) {
+        renderDropdown(currentSuggestions, q);
+      }
+    });
+  })();
 </script>
 </body>
 </html>

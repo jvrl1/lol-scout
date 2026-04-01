@@ -1,3 +1,4 @@
+require('dotenv').config();
 const http = require('http');
 const https = require('https');
 const fs = require('fs');
@@ -6,29 +7,37 @@ const url = require('url');
 
 // ─── Configuração ────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
-const API_KEY = "RGAPI-5f9863c6-fd24-4215-b0d5-96682382481d";
+const API_KEY = process.env.RIOT_API_KEY || 'RGAPI-c211df38-493a-4633-a842-d52ad155d4e7';
+
+if (!API_KEY) {
+  console.error('\x1b[31m❌ ERRO: RIOT_API_KEY não configurada!\x1b[0m');
+  console.error('   1. Copie o arquivo .env.example para .env');
+  console.error('   2. Adicione sua key de https://developer.riotgames.com');
+  process.exit(1);
+}
+
 
 // ─── Cores para o terminal (ANSI escape codes) ───────────────────────────────
 const cores = {
-  reset:   '\x1b[0m',
-  verde:   '\x1b[32m',
+  reset: '\x1b[0m',
+  verde: '\x1b[32m',
   amarelo: '\x1b[33m',
-  ciano:   '\x1b[36m',
-  vermelho:'\x1b[31m',
-  cinza:   '\x1b[90m',
+  ciano: '\x1b[36m',
+  vermelho: '\x1b[31m',
+  cinza: '\x1b[90m',
   negrito: '\x1b[1m',
 };
 
 // ─── Mapa de MIME types suportados ───────────────────────────────────────────
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
-  '.js':   'application/javascript; charset=utf-8',
-  '.css':  'text/css; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
-  '.png':  'image/png',
-  '.jpg':  'image/jpeg',
-  '.ico':  'image/x-icon',
-  '.svg':  'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.ico': 'image/x-icon',
+  '.svg': 'image/svg+xml',
 };
 
 // ─── Helpers de log ──────────────────────────────────────────────────────────
@@ -106,12 +115,12 @@ function handleProxy(req, res, urlDestino) {
   // Opções da requisição HTTPS para a Riot API
   const opcoes = {
     hostname: parsedUrl.hostname,
-    path:     parsedUrl.pathname + parsedUrl.search,
-    method:   'GET',
+    path: parsedUrl.pathname + parsedUrl.search,
+    method: 'GET',
     headers: {
       'X-Riot-Token': API_KEY,
-      'Accept':       'application/json',
-      'User-Agent':   'LOL-Scout-Proxy/1.0',
+      'Accept': 'application/json',
+      'User-Agent': 'LOL-Scout-Proxy/1.0',
     },
     timeout: 10000, // 10 segundos de timeout
   };
@@ -212,10 +221,10 @@ function handleEstatico(req, res, caminhoRequisitado) {
 }
 
 // ─── Criação do servidor HTTP ─────────────────────────────────────────────────
-const servidor = http.createServer((req, res) => {
+const servidor = http.createServer(async (req, res) => {
   const parsedReq = url.parse(req.url, true);
-  const pathname  = parsedReq.pathname;
-  const metodo    = req.method.toUpperCase();
+  const pathname = parsedReq.pathname;
+  const metodo = req.method.toUpperCase();
 
   // ── Trata preflight OPTIONS (CORS) ──────────────────────────────────────
   if (metodo === 'OPTIONS') {
@@ -236,6 +245,75 @@ const servidor = http.createServer((req, res) => {
     }
 
     return handleProxy(req, res, urlDestino);
+  }
+
+  // ── Rota: /search-summoner?name=... ──────────────────────────────────────
+  // Tenta resolver o nome do invocador testando as tags mais comuns do BR
+  if (pathname === '/search-summoner') {
+    const nome = parsedReq.query.name;
+    if (!nome || nome.trim().length < 2) {
+      return responderJSON(res, 400, { error: 'Parâmetro ?name= deve ter ao menos 2 caracteres.' });
+    }
+
+    const TAGS_COMUNS = ['BR1', 'BR2', 'BR3', 'BR4', 'BR5'];
+    const found = [];
+
+    // Helper: faz requisição com a API key e retorna Promise<object|null>
+    function tryAccount(gameName, tagLine) {
+      return new Promise((resolve) => {
+        const targetUrl = `https://americas.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`;
+        let parsedTarget;
+        try { parsedTarget = new URL(targetUrl); } catch (_) { return resolve(null); }
+
+        const opcoes = {
+          hostname: parsedTarget.hostname,
+          path: parsedTarget.pathname + parsedTarget.search,
+          method: 'GET',
+          headers: { 'X-Riot-Token': API_KEY, 'Accept': 'application/json', 'User-Agent': 'LOL-Scout-Proxy/1.0' },
+          timeout: 5000,
+        };
+
+        const req2 = https.request(opcoes, (res2) => {
+          const chunks = [];
+          res2.on('data', c => chunks.push(c));
+          res2.on('end', () => {
+            if (res2.statusCode === 200) {
+              try { resolve(JSON.parse(Buffer.concat(chunks).toString())); }
+              catch (_) { resolve(null); }
+            } else {
+              resolve(null);
+            }
+          });
+        });
+        req2.on('error', () => resolve(null));
+        req2.on('timeout', () => { req2.destroy(); resolve(null); });
+        req2.end();
+      });
+    }
+
+    try {
+      const nomeStr = nome.trim();
+
+      // Se o usuário já digitou com #, tenta direto
+      if (nomeStr.includes('#')) {
+        const [gn, tl] = nomeStr.split('#');
+        if (gn && tl) {
+          const acc = await tryAccount(gn, tl);
+          if (acc) found.push({ gameName: acc.gameName, tagLine: acc.tagLine, puuid: acc.puuid });
+        }
+      } else {
+        // Testa todas as tags comuns em paralelo
+        const promises = TAGS_COMUNS.map(tag => tryAccount(nomeStr, tag));
+        const results = await Promise.all(promises);
+        for (const acc of results) {
+          if (acc) found.push({ gameName: acc.gameName, tagLine: acc.tagLine, puuid: acc.puuid });
+        }
+      }
+
+      return responderJSON(res, 200, { suggestions: found });
+    } catch (e) {
+      return responderJSON(res, 500, { error: 'Erro interno na busca de invocador.' });
+    }
   }
 
   // ── Rota: arquivos estáticos ─────────────────────────────────────────────
